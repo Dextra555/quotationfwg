@@ -282,6 +282,7 @@ class QuestionnaireController extends ChangeNotifier {
     required String salesNotes,
     int? budgetRangeMin,
     int? budgetRangeMax,
+    Map<String, int>? inventoryQuantities,
   }) async {
     _setSubmitting(true);
     _error = null;
@@ -342,6 +343,9 @@ class QuestionnaireController extends ChangeNotifier {
         questionnaireResponses: responses,
       );
 
+      // Get selected inventory items with quantities
+      final selectedInventoryItems = getSelectedInventoryItems(inventoryQuantities ?? {});
+      
       // Debug log to see what data is being sent
       // Create manual JSON to ensure proper serialization
       final manualJson = {
@@ -366,6 +370,7 @@ class QuestionnaireController extends ChangeNotifier {
         'budget_range_min': budgetRangeMin,
         'budget_range_max': budgetRangeMax,
         'questionnaire_responses': responsesJson,
+        'selected_inventory_items': selectedInventoryItems,
       };
       
       print('=== LEAD SUBMISSION DEBUG ===');
@@ -381,11 +386,18 @@ class QuestionnaireController extends ChangeNotifier {
       print('Service Location: "$serviceLocation"');
       print('Compliance Required: "$complianceRequired"');
       print('Questionnaire Responses: ${responsesJson.length} items');
+      print('Selected Inventory Items: ${selectedInventoryItems.length} items');
       
       // Show questionnaire responses JSON structure
       for (int i = 0; i < responsesJson.length; i++) {
         final response = responsesJson[i];
         print('  - Q: ${response['question_id']}, A: "${response['answer']}"');
+      }
+      
+      // Show inventory items JSON structure
+      for (int i = 0; i < selectedInventoryItems.length; i++) {
+        final item = selectedInventoryItems[i];
+        print('  - Item: ${item['template_inventory_item_id']}, Qty: ${item['quantity']}');
       }
       print('=============================');
 
@@ -398,6 +410,21 @@ class QuestionnaireController extends ChangeNotifier {
     } finally {
       _setSubmitting(false);
     }
+  }
+
+  // Get selected inventory items with quantities
+  List<Map<String, dynamic>> getSelectedInventoryItems(Map<String, int> quantities) {
+    if (_inventoryItems == null || _inventoryItems!.isEmpty) {
+      return [];
+    }
+    
+    return _inventoryItems!.map((item) {
+      final quantity = quantities[item.id] ?? (item.defaultQuantity ?? 1);
+      return {
+        'template_inventory_item_id': item.id,
+        'quantity': quantity,
+      };
+    }).toList();
   }
 
   // Clear all data

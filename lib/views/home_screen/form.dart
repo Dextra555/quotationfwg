@@ -1489,6 +1489,9 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
   ];
   final Set<String> selectedAllowances = {};
 
+  // ✅ Inventory items quantities tracking
+  final Map<String, int> inventoryQuantities = {};
+
   @override
   void initState() {
     super.initState();
@@ -2032,19 +2035,105 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                                       ),
                                       const SizedBox(width: 16),
                                       Text(
-                                        'Qty: ${item.defaultQuantity ?? 1}',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 11,
-                                          color: Colors.grey.shade500,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 16),
-                                      Text(
-                                        '₹${item.inventoryItem.sellingPrice}',
+                                        'Price: ₹${item.inventoryItem.sellingPrice}',
                                         style: GoogleFonts.poppins(
                                           fontSize: 12,
                                           fontWeight: FontWeight.w600,
                                           color: Colors.green.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  const SizedBox(height: 8),
+                                  // Quantity selector
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'Quantity:',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        decoration: BoxDecoration(
+                                          border: Border.all(color: Colors.grey.shade300),
+                                          borderRadius: BorderRadius.circular(8),
+                                        ),
+                                        child: Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            InkWell(
+                                              onTap: () {
+                                                setState(() {
+                                                  final currentQty = inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1);
+                                                  if (currentQty > 1) {
+                                                    inventoryQuantities[item.id] = currentQty - 1;
+                                                  }
+                                                });
+                                              },
+                                              child: Container(
+                                                width: 32,
+                                                height: 32,
+                                                decoration: BoxDecoration(
+                                                  color: primaryRed.withOpacity(0.1),
+                                                  borderRadius: const BorderRadius.only(
+                                                    topLeft: Radius.circular(8),
+                                                    bottomLeft: Radius.circular(8),
+                                                  ),
+                                                ),
+                                                child: Icon(
+                                                  Icons.remove,
+                                                  size: 16,
+                                                  color: primaryRed,
+                                                ),
+                                              ),
+                                            ),
+                                            Container(
+                                              width: 50,
+                                              height: 32,
+                                              alignment: Alignment.center,
+                                              decoration: BoxDecoration(
+                                                border: Border.symmetric(
+                                                  vertical: BorderSide(color: Colors.grey.shade300),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                '${inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1)}',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 14,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                            ),
+                                            InkWell(
+                                              onTap: () {
+                                                setState(() {
+                                                  final currentQty = inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1);
+                                                  inventoryQuantities[item.id] = currentQty + 1;
+                                                });
+                                              },
+                                              child: Container(
+                                                width: 32,
+                                                height: 32,
+                                                decoration: BoxDecoration(
+                                                  color: primaryRed.withOpacity(0.1),
+                                                  borderRadius: const BorderRadius.only(
+                                                    topRight: Radius.circular(8),
+                                                    bottomRight: Radius.circular(8),
+                                                  ),
+                                                ),
+                                                child: Icon(
+                                                  Icons.add,
+                                                  size: 16,
+                                                  color: primaryRed,
+                                                ),
+                                              ),
+                                            ),
+                                          ],
                                         ),
                                       ),
                                     ],
@@ -2188,6 +2277,83 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                 ),
                 const SizedBox(height: 16),
               ],
+
+              // Show selected inventory items with quantities
+              if (controller.inventoryItems != null && controller.inventoryItems!.isNotEmpty) ...[
+                const Text(
+                  "Selected Equipment & Supplies",
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 200, // Fixed height for scrollable inventory items
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.grey.shade300),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: controller.inventoryItems!.map((item) {
+                        final quantity = inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1);
+                        return Padding(
+                          padding: const EdgeInsets.only(bottom: 8.0),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      item.inventoryItem.name,
+                                      style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: Colors.black87,
+                                      ),
+                                    ),
+                                    Text(
+                                      'SKU: ${item.inventoryItem.sku}',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: Colors.grey.shade600,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text(
+                                    'Qty: $quantity',
+                                    style: const TextStyle(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  Text(
+                                    '₹${item.inventoryItem.sellingPrice}',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.green.shade700,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      }).toList(),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+              ],
             ],
             buttonText: controller.isSubmitting ? "Submitting..." : "Submit",
             onTap: controller.isSubmitting ? () {} : () {
@@ -2246,6 +2412,7 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
         salesNotes: notesCtrl.text,
         budgetRangeMin: budgetMin,
         budgetRangeMax: budgetMax,
+        inventoryQuantities: inventoryQuantities,
       );
 
       // Clear the loading snackbar
