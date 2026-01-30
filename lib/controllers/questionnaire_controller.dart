@@ -9,6 +9,7 @@ class QuestionnaireController extends ChangeNotifier {
   List<Question> _questions = [];
   Map<String, dynamic> _answers = {};
   QuestionnaireTemplate? _selectedTemplate;
+  List<InventoryItem>? _inventoryItems;
   
   bool _isLoadingTemplates = false;
   bool _isLoadingQuestions = false;
@@ -21,6 +22,7 @@ class QuestionnaireController extends ChangeNotifier {
   List<Question> get questions => _questions;
   Map<String, dynamic> get answers => _answers;
   QuestionnaireTemplate? get selectedTemplate => _selectedTemplate;
+  List<InventoryItem>? get inventoryItems => _inventoryItems;
   
   bool get isLoadingTemplates => _isLoadingTemplates;
   bool get isLoadingQuestions => _isLoadingQuestions;
@@ -39,22 +41,71 @@ class QuestionnaireController extends ChangeNotifier {
     _error = null;
     
     try {
+      print('Loading questions for template: $templateId'); // Debug log
       final response = await ApiService.getQuestionnaireQuestions(templateId);
-      _questions = response.data.questions;
+      
+      if (response.success && response.data.questions.isNotEmpty) {
+        _questions = response.data.questions;
+        _inventoryItems = response.data.inventoryItems; // Store inventory items
+        print('Successfully loaded ${_questions.length} questions and ${_inventoryItems?.length ?? 0} inventory items'); // Debug log
+        
+        // Initialize answers with empty values
+        for (var question in _questions) {
+          if (!_answers.containsKey(question.id)) {
+            // Set appropriate default answer based on question type
+            switch (question.type.toLowerCase()) {
+              case 'checkbox':
+              case 'multiselect':
+                _answers[question.id] = <String>[];
+                break;
+              case 'number':
+              case 'range':
+                _answers[question.id] = 0;
+                break;
+              case 'rating':
+                _answers[question.id] = 0;
+                break;
+              default:
+                _answers[question.id] = '';
+            }
+          }
+        }
+      } else {
+        // Handle empty questions response
+        print('No questions found for template: $templateId'); // Debug log
+        _questions.clear();
+        _error = 'No questions available for this service type';
+      }
+      
       _setLoadingQuestions(false);
       notifyListeners();
     } catch (e) {
       String errorMessage = e.toString();
+      print('Error loading questions: $errorMessage'); // Debug log
+      
       // Reset the attempt flag on error so user can retry
       _hasAttemptedLoad = false;
       
+      // Try to provide more user-friendly error messages
       if (errorMessage.contains('unauthorized') || errorMessage.contains('401')) {
         _error = 'Authentication required. Please login first.';
-      } else if (errorMessage.contains('Network error')) {
+      } else if (errorMessage.contains('Network error') || errorMessage.contains('internet')) {
         _error = 'Network error. Please check your internet connection.';
+      } else if (errorMessage.contains('timeout')) {
+        _error = 'Connection timeout. Please check your internet connection.';
+      } else if (errorMessage.contains('Server error') || errorMessage.contains('500')) {
+        _error = 'Server is temporarily unavailable. Please try again later.';
+      } else if (errorMessage.contains('Invalid response') || errorMessage.contains('Null')) {
+        _error = 'Server returned invalid data. Please try again later.';
+      } else if (errorMessage.contains('type') && errorMessage.contains('subtype')) {
+        // Handle JSON parsing errors gracefully
+        print('JSON parsing error, but continuing with empty questions'); // Debug log
+        _questions.clear();
+        _error = null; // Don't show error for parsing issues, just continue with empty questions
       } else {
         _error = 'Failed to load questions: $errorMessage';
       }
+      
       _setLoadingQuestions(false);
       notifyListeners();
     }
@@ -363,6 +414,7 @@ class QuestionnaireController extends ChangeNotifier {
   void clearQuestionsAndAnswers() {
     _questions.clear();
     _answers.clear();
+    _inventoryItems = null; // Clear inventory items
     _error = null;
     _hasAttemptedLoad = false; // Reset flag when template changes
     notifyListeners();

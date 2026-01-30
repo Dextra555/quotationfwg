@@ -205,19 +205,68 @@ class ApiService {
                   if (question is Map<String, dynamic>) {
                     // Manually create Question objects with safe defaults
                     try {
+                      // Handle options that can come in any format
+                      List<String>? parsedOptions;
+                      if (question['options'] != null) {
+                        if (question['options'] is String) {
+                          // Split comma-separated string options
+                          parsedOptions = (question['options'] as String)
+                              .split(',')
+                              .map((option) => option.trim())
+                              .where((option) => option.isNotEmpty)
+                              .toList();
+                        } else if (question['options'] is List) {
+                          // Handle list options
+                          parsedOptions = (question['options'] as List<dynamic>)
+                              .map((option) => option.toString())
+                              .toList();
+                        } else if (question['options'] is Map) {
+                          // Handle map options - extract values
+                          final optionsMap = question['options'] as Map<String, dynamic>;
+                          parsedOptions = optionsMap.values.map((option) => option.toString()).toList();
+                        } else {
+                          // Handle any other type by converting to string
+                          parsedOptions = [question['options'].toString()];
+                        }
+                      }
+
+                      // Extract display order from various possible field names
+                      int? displayOrder;
+                      final possibleOrderFields = ['display_order', 'displayOrder', 'order', 'sort_order', 'sortOrder'];
+                      for (final field in possibleOrderFields) {
+                        if (question[field] != null) {
+                          if (question[field] is num) {
+                            displayOrder = (question[field] as num).toInt();
+                          } else {
+                            displayOrder = int.tryParse(question[field].toString()) ?? 0;
+                          }
+                          break;
+                        }
+                      }
+
+                      // Extract mandatory status from various possible field names
+                      bool isMandatory = false;
+                      final possibleMandatoryFields = ['is_mandatory', 'isMandatory', 'mandatory', 'required', 'isRequired'];
+                      for (final field in possibleMandatoryFields) {
+                        if (question[field] != null) {
+                          if (question[field] is bool) {
+                            isMandatory = question[field] as bool;
+                          } else {
+                            isMandatory = question[field].toString().toLowerCase() == 'true';
+                          }
+                          break;
+                        }
+                      }
+
                       final questionObj = Question(
-                        id: question['id']?.toString() ?? '',
-                        text: question['text']?.toString() ?? '',
-                        type: question['type']?.toString() ?? '',
-                        isMandatory: question['is_mandatory'] as bool? ?? false,
-                        options: question['options'] != null 
-                            ? (question['options'] as List<dynamic>?)?.map((e) => e.toString()).toList()
-                            : null,
-                        helpText: question['help_text']?.toString(),
-                        conditionalLogic: question['conditional_logic'],
-                        displayOrder: question['display_order'] != null 
-                            ? (question['display_order'] is num ? (question['display_order'] as num).toInt() : 0)
-                            : 0,
+                        id: question['id']?.toString() ?? question['_id']?.toString() ?? '',
+                        text: question['text']?.toString() ?? question['question']?.toString() ?? question['title']?.toString() ?? '',
+                        type: question['type']?.toString() ?? question['question_type']?.toString() ?? question['inputType']?.toString() ?? 'text',
+                        isMandatory: isMandatory,
+                        options: parsedOptions,
+                        helpText: question['help_text']?.toString() ?? question['helpText']?.toString() ?? question['description']?.toString(),
+                        conditionalLogic: question['conditional_logic'] ?? question['conditionalLogic'] ?? question['conditions'],
+                        displayOrder: displayOrder ?? 0,
                       );
                       validQuestions.add(questionObj);
                     } catch (questionError) {
@@ -241,9 +290,48 @@ class ApiService {
                   questionCount: validQuestions.length,
                 );
                 
+                // Parse inventory items if available
+                final List<InventoryItem>? inventoryItems;
+                if (data['inventory_items'] != null) {
+                  final inventoryList = data['inventory_items'] as List;
+                  inventoryItems = inventoryList.map((item) {
+                    final itemData = item as Map<String, dynamic>;
+                    final inventoryItemData = itemData['inventory_item'] as Map<String, dynamic>;
+                    
+                    return InventoryItem(
+                      id: itemData['id']?.toString() ?? '',
+                      inventoryItem: InventoryItemData(
+                        id: inventoryItemData['id']?.toString() ?? '',
+                        name: inventoryItemData['name']?.toString() ?? '',
+                        description: inventoryItemData['description']?.toString() ?? '',
+                        sku: inventoryItemData['sku']?.toString() ?? '',
+                        category: Category(
+                          id: inventoryItemData['category']?['id']?.toString() ?? '',
+                          name: inventoryItemData['category']?['name']?.toString() ?? '',
+                        ),
+                        unit: inventoryItemData['unit']?.toString() ?? '',
+                        costPrice: inventoryItemData['cost_price']?.toString() ?? '0',
+                        sellingPrice: inventoryItemData['selling_price']?.toString() ?? '0',
+                        stockQuantity: inventoryItemData['stock_quantity'] as int?,
+                        reorderLevel: inventoryItemData['reorder_level'] as int?,
+                        isActive: inventoryItemData['is_active'] as bool? ?? true,
+                      ),
+                      triggerCondition: itemData['trigger_condition'],
+                      optionLabel: itemData['option_label']?.toString(),
+                      defaultQuantity: itemData['default_quantity'] as int?,
+                      isOptional: itemData['is_optional'] as bool?,
+                      displayOrder: itemData['display_order'] as int?,
+                      totalCost: itemData['total_cost'],
+                    );
+                  }).toList();
+                } else {
+                  inventoryItems = null;
+                }
+                
                 final questionnaireData = QuestionnaireData(
                   template: template,
                   questions: validQuestions,
+                  inventoryItems: inventoryItems,
                 );
                 
                 final response = QuestionnaireQuestionsResponse(
@@ -251,7 +339,7 @@ class ApiService {
                   data: questionnaireData,
                 );
                 
-                print('Manual parsing successful with ${validQuestions.length} questions');
+                print('Manual parsing successful with ${validQuestions.length} questions and ${inventoryItems?.length ?? 0} inventory items');
                 return response;
               }
             } catch (fallbackError) {

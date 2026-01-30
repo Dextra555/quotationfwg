@@ -1827,7 +1827,7 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
           // Load questions for selected template when this form is built
           // Only load if template has questions (question_count > 0)
           if (controller.selectedTemplate != null && 
-              controller.selectedTemplate!.questionCount > 0 &&
+              (controller.selectedTemplate!.questionCount ?? 0) > 0 &&
               controller.questions.isEmpty && 
               !controller.isLoadingQuestions) {
             print('Loading questions for template: ${controller.selectedTemplate!.id}'); // Debug log
@@ -1880,7 +1880,7 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                     ],
                   ),
                 )
-              else if (controller.questions.isEmpty && controller.selectedTemplate != null && controller.selectedTemplate!.questionCount > 0)
+              else if (controller.questions.isEmpty && controller.selectedTemplate != null && (controller.selectedTemplate!.questionCount ?? 0) > 0)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -1934,8 +1934,7 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                 SingleChildScrollView(
                   child: Column(
                     children: controller.questions
-                      .where((q) => (q.displayOrder ?? 0) > 0) // Only show questions with valid display order
-                      .toList()
+                      .toList() // Show all questions regardless of display order
                       .map((question) {
                         return Padding(
                           padding: const EdgeInsets.only(bottom: 8.0),
@@ -1950,6 +1949,113 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                           ),
                         );
                       }).toList(),
+                  ),
+                ),
+              ],
+              
+              // Show inventory items if available
+              if (controller.inventoryItems != null && controller.inventoryItems!.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: primaryRed.withOpacity(0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: primaryRed.withOpacity(0.2)),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(Icons.inventory, color: primaryRed, size: 20),
+                      const SizedBox(height: 8),
+                      Text(
+                        "Included Equipment & Supplies",
+                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: primaryRed),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        "The following equipment and supplies are included with this service package:",
+                        style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.4),
+                      ),
+                      const SizedBox(height: 16),
+                      // Inventory items list
+                      ...controller.inventoryItems!.map((item) => Container(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: primaryRed.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Icon(Icons.inventory_2, color: primaryRed, size: 20),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    item.inventoryItem.name,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 14,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    item.inventoryItem.description,
+                                    style: GoogleFonts.poppins(
+                                      fontSize: 12,
+                                      color: Colors.grey.shade600,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      Text(
+                                        'SKU: ${item.inventoryItem.sku}',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Text(
+                                        'Qty: ${item.defaultQuantity ?? 1}',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 11,
+                                          color: Colors.grey.shade500,
+                                        ),
+                                      ),
+                                      const SizedBox(width: 16),
+                                      Text(
+                                        '₹${item.inventoryItem.sellingPrice}',
+                                        style: GoogleFonts.poppins(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.green.shade700,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      )).toList(),
+                    ],
                   ),
                 ),
               ] else if (controller.selectedTemplate == null)

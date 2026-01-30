@@ -28,7 +28,7 @@ QuestionnaireTemplate _$QuestionnaireTemplateFromJson(
   serviceType: ServiceType.fromJson(
     json['service_type'] as Map<String, dynamic>,
   ),
-  questionCount: (json['question_count'] as num).toInt(),
+  questionCount: (json['question_count'] as num?)?.toInt(),
 );
 
 Map<String, dynamic> _$QuestionnaireTemplateToJson(
@@ -41,8 +41,10 @@ Map<String, dynamic> _$QuestionnaireTemplateToJson(
   'question_count': instance.questionCount,
 };
 
-ServiceType _$ServiceTypeFromJson(Map<String, dynamic> json) =>
-    ServiceType(id: (json['id'] as num).toInt(), name: json['name'] as String);
+ServiceType _$ServiceTypeFromJson(Map<String, dynamic> json) => ServiceType(
+  id: (json['id'] as num?)?.toInt(),
+  name: json['name'] as String,
+);
 
 Map<String, dynamic> _$ServiceTypeToJson(ServiceType instance) =>
     <String, dynamic>{'id': instance.id, 'name': instance.name};
@@ -66,12 +68,16 @@ QuestionnaireData _$QuestionnaireDataFromJson(Map<String, dynamic> json) =>
       questions: (json['questions'] as List<dynamic>)
           .map((e) => Question.fromJson(e as Map<String, dynamic>))
           .toList(),
+      inventoryItems: (json['inventory_items'] as List<dynamic>?)
+          ?.map((e) => InventoryItem.fromJson(e as Map<String, dynamic>))
+          .toList(),
     );
 
 Map<String, dynamic> _$QuestionnaireDataToJson(QuestionnaireData instance) =>
     <String, dynamic>{
       'template': instance.template,
       'questions': instance.questions,
+      'inventory_items': instance.inventoryItems,
     };
 
 Question _$QuestionFromJson(Map<String, dynamic> json) => Question(
@@ -297,4 +303,68 @@ Map<String, dynamic> _$QuestionnaireSubmissionResponseToJson(
   'questionText': instance.questionText,
   'answer': instance.answer,
   'answerDisplay': instance.answerDisplay,
+};
+
+InventoryItem _$InventoryItemFromJson(Map<String, dynamic> json) =>
+    InventoryItem(
+      id: json['id'] as String,
+      inventoryItem: InventoryItemData.fromJson(
+        json['inventory_item'] as Map<String, dynamic>,
+      ),
+      triggerCondition: json['trigger_condition'],
+      optionLabel: json['option_label'] as String?,
+      defaultQuantity: (json['default_quantity'] as num?)?.toInt(),
+      isOptional: json['is_optional'] as bool?,
+      displayOrder: (json['display_order'] as num?)?.toInt(),
+      totalCost: json['total_cost'],
+    );
+
+Map<String, dynamic> _$InventoryItemToJson(InventoryItem instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'inventory_item': instance.inventoryItem,
+      'trigger_condition': instance.triggerCondition,
+      'option_label': instance.optionLabel,
+      'default_quantity': instance.defaultQuantity,
+      'is_optional': instance.isOptional,
+      'display_order': instance.displayOrder,
+      'total_cost': instance.totalCost,
+    };
+
+InventoryItemData _$InventoryItemDataFromJson(Map<String, dynamic> json) =>
+    InventoryItemData(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      description: json['description'] as String,
+      sku: json['sku'] as String,
+      category: Category.fromJson(json['category'] as Map<String, dynamic>),
+      unit: json['unit'] as String,
+      costPrice: json['cost_price'] as String,
+      sellingPrice: json['selling_price'] as String,
+      stockQuantity: (json['stock_quantity'] as num?)?.toInt(),
+      reorderLevel: (json['reorder_level'] as num?)?.toInt(),
+      isActive: json['is_active'] as bool,
+    );
+
+Map<String, dynamic> _$InventoryItemDataToJson(InventoryItemData instance) =>
+    <String, dynamic>{
+      'id': instance.id,
+      'name': instance.name,
+      'description': instance.description,
+      'sku': instance.sku,
+      'category': instance.category,
+      'unit': instance.unit,
+      'cost_price': instance.costPrice,
+      'selling_price': instance.sellingPrice,
+      'stock_quantity': instance.stockQuantity,
+      'reorder_level': instance.reorderLevel,
+      'is_active': instance.isActive,
+    };
+
+Category _$CategoryFromJson(Map<String, dynamic> json) =>
+    Category(id: json['id'] as String, name: json['name'] as String);
+
+Map<String, dynamic> _$CategoryToJson(Category instance) => <String, dynamic>{
+  'id': instance.id,
+  'name': instance.name,
 };

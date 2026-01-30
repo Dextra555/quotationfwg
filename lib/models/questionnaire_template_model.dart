@@ -26,14 +26,14 @@ class QuestionnaireTemplate {
   @JsonKey(name: 'service_type')
   final ServiceType serviceType;
   @JsonKey(name: 'question_count')
-  final int questionCount;
+  final int? questionCount;
 
   QuestionnaireTemplate({
     required this.id,
     required this.name,
     required this.description,
     required this.serviceType,
-    required this.questionCount,
+    this.questionCount,
   });
 
   factory QuestionnaireTemplate.fromJson(Map<String, dynamic> json) =>
@@ -44,11 +44,11 @@ class QuestionnaireTemplate {
 
 @JsonSerializable()
 class ServiceType {
-  final int id;
+  final int? id;
   final String name;
 
   ServiceType({
-    required this.id,
+    this.id,
     required this.name,
   });
 
@@ -78,10 +78,13 @@ class QuestionnaireQuestionsResponse {
 class QuestionnaireData {
   final QuestionnaireTemplate template;
   final List<Question> questions;
+  @JsonKey(name: 'inventory_items')
+  final List<InventoryItem>? inventoryItems;
 
   QuestionnaireData({
     required this.template,
     required this.questions,
+    this.inventoryItems,
   });
 
   factory QuestionnaireData.fromJson(Map<String, dynamic> json) =>
@@ -116,8 +119,71 @@ class Question {
     this.displayOrder,
   });
 
-  factory Question.fromJson(Map<String, dynamic> json) =>
-      _$QuestionFromJson(json);
+  factory Question.fromJson(Map<String, dynamic> json) {
+    // Handle options that can come in any format
+    List<String>? parsedOptions;
+    if (json['options'] != null) {
+      if (json['options'] is String) {
+        // Split comma-separated string options
+        parsedOptions = (json['options'] as String)
+            .split(',')
+            .map((option) => option.trim())
+            .where((option) => option.isNotEmpty)
+            .toList();
+      } else if (json['options'] is List) {
+        // Handle list options
+        parsedOptions = (json['options'] as List<dynamic>)
+            .map((option) => option.toString())
+            .toList();
+      } else if (json['options'] is Map) {
+        // Handle map options - extract values
+        final optionsMap = json['options'] as Map<String, dynamic>;
+        parsedOptions = optionsMap.values.map((option) => option.toString()).toList();
+      } else {
+        // Handle any other type by converting to string
+        parsedOptions = [json['options'].toString()];
+      }
+    }
+
+    // Extract display order from various possible field names
+    int? displayOrder;
+    final possibleOrderFields = ['display_order', 'displayOrder', 'order', 'sort_order', 'sortOrder'];
+    for (final field in possibleOrderFields) {
+      if (json[field] != null) {
+        if (json[field] is num) {
+          displayOrder = (json[field] as num).toInt();
+        } else {
+          displayOrder = int.tryParse(json[field].toString()) ?? 0;
+        }
+        break;
+      }
+    }
+
+    // Extract mandatory status from various possible field names
+    bool isMandatory = false;
+    final possibleMandatoryFields = ['is_mandatory', 'isMandatory', 'mandatory', 'required', 'isRequired'];
+    for (final field in possibleMandatoryFields) {
+      if (json[field] != null) {
+        if (json[field] is bool) {
+          isMandatory = json[field] as bool;
+        } else {
+          isMandatory = json[field].toString().toLowerCase() == 'true';
+        }
+        break;
+      }
+    }
+
+    return Question(
+      id: json['id']?.toString() ?? json['_id']?.toString() ?? '',
+      text: json['text']?.toString() ?? json['question']?.toString() ?? json['title']?.toString() ?? '',
+      type: json['type']?.toString() ?? json['question_type']?.toString() ?? json['inputType']?.toString() ?? 'text',
+      isMandatory: isMandatory,
+      options: parsedOptions,
+      helpText: json['help_text']?.toString() ?? json['helpText']?.toString() ?? json['description']?.toString(),
+      conditionalLogic: json['conditional_logic'] ?? json['conditionalLogic'] ?? json['conditions'],
+      displayOrder: displayOrder ?? 0,
+    );
+  }
 
   Map<String, dynamic> toJson() => _$QuestionToJson(this);
 }
@@ -340,4 +406,94 @@ class QuestionnaireSubmissionResponse {
       _$QuestionnaireSubmissionResponseFromJson(json);
 
   Map<String, dynamic> toJson() => _$QuestionnaireSubmissionResponseToJson(this);
+}
+
+@JsonSerializable()
+class InventoryItem {
+  final String id;
+  @JsonKey(name: 'inventory_item')
+  final InventoryItemData inventoryItem;
+  @JsonKey(name: 'trigger_condition')
+  final dynamic triggerCondition;
+  @JsonKey(name: 'option_label')
+  final String? optionLabel;
+  @JsonKey(name: 'default_quantity')
+  final int? defaultQuantity;
+  @JsonKey(name: 'is_optional')
+  final bool? isOptional;
+  @JsonKey(name: 'display_order')
+  final int? displayOrder;
+  @JsonKey(name: 'total_cost')
+  final dynamic totalCost;
+
+  InventoryItem({
+    required this.id,
+    required this.inventoryItem,
+    this.triggerCondition,
+    this.optionLabel,
+    this.defaultQuantity,
+    this.isOptional,
+    this.displayOrder,
+    this.totalCost,
+  });
+
+  factory InventoryItem.fromJson(Map<String, dynamic> json) =>
+      _$InventoryItemFromJson(json);
+
+  Map<String, dynamic> toJson() => _$InventoryItemToJson(this);
+}
+
+@JsonSerializable()
+class InventoryItemData {
+  final String id;
+  final String name;
+  final String description;
+  final String sku;
+  final Category category;
+  final String unit;
+  @JsonKey(name: 'cost_price')
+  final String costPrice;
+  @JsonKey(name: 'selling_price')
+  final String sellingPrice;
+  @JsonKey(name: 'stock_quantity')
+  final int? stockQuantity;
+  @JsonKey(name: 'reorder_level')
+  final int? reorderLevel;
+  @JsonKey(name: 'is_active')
+  final bool isActive;
+
+  InventoryItemData({
+    required this.id,
+    required this.name,
+    required this.description,
+    required this.sku,
+    required this.category,
+    required this.unit,
+    required this.costPrice,
+    required this.sellingPrice,
+    this.stockQuantity,
+    this.reorderLevel,
+    required this.isActive,
+  });
+
+  factory InventoryItemData.fromJson(Map<String, dynamic> json) =>
+      _$InventoryItemDataFromJson(json);
+
+  Map<String, dynamic> toJson() => _$InventoryItemDataToJson(this);
+}
+
+@JsonSerializable()
+class Category {
+  final String id;
+  final String name;
+
+  Category({
+    required this.id,
+    required this.name,
+  });
+
+  factory Category.fromJson(Map<String, dynamic> json) =>
+      _$CategoryFromJson(json);
+
+  Map<String, dynamic> toJson() => _$CategoryToJson(this);
 }
