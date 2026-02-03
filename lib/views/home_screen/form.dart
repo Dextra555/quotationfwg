@@ -1437,6 +1437,7 @@ import 'package:provider/provider.dart';
 import '../../controllers/questionnaire_controller.dart';
 import '../../widgets/dynamic_question_widget.dart';
 import '../../widgets/shimmer_loading_widget.dart';
+import '../../services/session_service.dart';
 
 const Color primaryRed = Color(0xFF8B0000);
 const Color borderGrey = Color(0xFFE0E0E0);
@@ -1605,18 +1606,64 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
   }
 
   Widget _step(String n, String t, bool active) {
+    final hasSelectedServices = _questionnaireController.selectedTemplates.isNotEmpty;
+    final isAdditionalStep = n == "2";
+    
     return Column(
       children: [
-        CircleAvatar(
-          radius: 14,
-          backgroundColor: active ? primaryRed : borderGrey,
-          child: Text(n,
-              style: GoogleFonts.poppins(color: Colors.white, fontSize: 12)),
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            CircleAvatar(
+              radius: 14,
+              backgroundColor: active ? primaryRed : borderGrey,
+              child: Text(n,
+                  style: GoogleFonts.poppins(color: Colors.white, fontSize: 12)),
+            ),
+            // Show indicator dot for additional step if services are selected
+            if (isAdditionalStep && hasSelectedServices && !active)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: Container(
+                  width: 8,
+                  height: 8,
+                  decoration: BoxDecoration(
+                    color: Colors.green,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.white, width: 1),
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 6),
-        Text(t,
-            style: GoogleFonts.poppins(
-                fontSize: 12, color: active ? primaryRed : textGrey)),
+        Row(
+          children: [
+            Text(t,
+                style: GoogleFonts.poppins(
+                    fontSize: 12, color: active ? primaryRed : textGrey)),
+            // Show service count indicator for additional step
+            if (isAdditionalStep && hasSelectedServices && !active) ...[
+              const SizedBox(width: 4),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Text(
+                  '${_questionnaireController.selectedTemplates.length}',
+                  style: GoogleFonts.poppins(
+                    fontSize: 8,
+                    color: Colors.green,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
       ],
     );
   }
@@ -1754,21 +1801,100 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                   ),
                 )
               else
-                DropdownButtonFormField<String>(
-                  value: controller.selectedTemplate?.id,
-                  decoration: _dec("Select service type"),
-                  items: controller.templates.map((template) {
-                    return DropdownMenuItem<String>(
-                      value: template.id,
-                      child: Text(template.name),
-                    );
-                  }).toList(),
-                  onChanged: (value) {
-                    controller.selectTemplate(value);
-                    // Clear previous questions and answers when template changes
-                    controller.clearQuestionsAndAnswers();
-                    print('Selected template: $value'); // Debug log
-                  },
+                Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(
+                    maxWidth: 350, // Set maximum width for service type dropdown
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Select service types (you can select multiple):',
+                        style: GoogleFonts.poppins(
+                          fontSize: 12,
+                          color: Colors.grey[600],
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          border: Border.all(color: borderGrey),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Column(
+                          children: controller.templates.map((template) {
+                            final isSelected = controller.isTemplateSelected(template.id);
+                            return InkWell(
+                              onTap: () {
+                                controller.toggleTemplateSelection(template.id);
+                                // Clear previous questions when selection changes
+                                controller.clearQuestionsAndAnswers();
+                              },
+                              child: Row(
+                                children: [
+                                  Checkbox(
+                                    value: isSelected,
+                                    activeColor: primaryRed,
+                                    onChanged: (v) {
+                                      controller.toggleTemplateSelection(template.id);
+                                      // Clear previous questions when selection changes
+                                      controller.clearQuestionsAndAnswers();
+                                    },
+                                  ),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          template.name,
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w500,
+                                            color: isSelected ? primaryRed : Colors.black87,
+                                          ),
+                                        ),
+                                        if (template.description != null && template.description!.isNotEmpty)
+                                          Text(
+                                            template.description!,
+                                            style: GoogleFonts.poppins(
+                                              fontSize: 12,
+                                              color: Colors.grey[600],
+                                            ),
+                                            maxLines: 2,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      if (controller.selectedTemplates.isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: primaryRed.withOpacity(0.1),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            '${controller.selectedTemplates.length} service type(s) selected',
+                            style: GoogleFonts.poppins(
+                              fontSize: 12,
+                              color: primaryRed,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ),
             ],
             buttonText: "Continue",
@@ -1808,8 +1934,8 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                 _showErrorSnackBar('Please enter your state');
                 return;
               }
-              if (controller.selectedTemplate == null) {
-                _showErrorSnackBar('Please select a service type');
+              if (controller.selectedTemplates.isEmpty) {
+                _showErrorSnackBar('Please select at least one service type');
                 return;
               }
               
@@ -1827,21 +1953,21 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
       create: (_) => _questionnaireController,
       child: Consumer<QuestionnaireController>(
         builder: (context, controller, child) {
-          // Load questions for selected template when this form is built
-          // Only load if template has questions (question_count > 0)
-          if (controller.selectedTemplate != null && 
-              (controller.selectedTemplate!.questionCount ?? 0) > 0 &&
-              controller.questions.isEmpty && 
+          // Load questions for SELECTED templates when this form is built
+          // Only load if selected templates have questions (question_count > 0)
+          if (controller.selectedTemplates.isNotEmpty && 
+              controller.selectedTemplates.any((t) => (t.questionCount ?? 0) > 0) &&
+              controller.questionsByTemplate.values.every((questions) => questions.isEmpty) && 
               !controller.isLoadingQuestions) {
-            print('Loading questions for template: ${controller.selectedTemplate!.id}'); // Debug log
-            Future.microtask(() => controller.loadQuestionsForTemplate(controller.selectedTemplate!.id));
+            print('Loading questions for ${controller.selectedTemplates.length} selected templates'); // Debug log
+            Future.microtask(() => controller.loadQuestionsForSelectedTemplates());
           }
           
           return _formBody(
             title: "Service Requirements",
             children: [
               // Show dynamic questions or appropriate message
-              if (controller.selectedTemplate?.questionCount == 0)
+              if (!controller.selectedTemplates.any((t) => (t.questionCount ?? 0) > 0))
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -1851,14 +1977,14 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.grey[300]!),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.info_outline, color: Colors.grey, size: 20),
-                      SizedBox(height: 8),
+                      const Icon(Icons.info_outline, color: Colors.grey, size: 20),
+                      const SizedBox(height: 8),
                       Text(
-                        'No additional service requirements for this package.',
-                        style: TextStyle(fontSize: 14, color: Colors.grey),
+                        'No additional service requirements for selected package(s).',
+                        style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
                       ),
                     ],
                   ),
@@ -1883,7 +2009,7 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                     ],
                   ),
                 )
-              else if (controller.questions.isEmpty && controller.selectedTemplate != null && (controller.selectedTemplate!.questionCount ?? 0) > 0)
+              else if (controller.questionsByTemplate.values.every((questions) => questions.isEmpty) && controller.selectedTemplates.isNotEmpty && controller.selectedTemplates.any((t) => (t.questionCount ?? 0) > 0))
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -1893,261 +2019,389 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.orange[200]!),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.warning, color: Colors.orange, size: 20),
-                      SizedBox(height: 8),
+                      const Icon(Icons.warning, color: Colors.orange, size: 20),
+                      const SizedBox(height: 8),
                       Text(
-                        'No service requirements available for this service type.',
-                        style: TextStyle(fontSize: 14, color: Colors.orange),
+                        'No service requirements available for selected service type(s).',
+                        style: GoogleFonts.poppins(fontSize: 14, color: Colors.orange),
                       ),
                     ],
                   ),
                 )
-              else if (controller.questions.isNotEmpty) ...[
+              else if (controller.questionsByTemplate.values.any((questions) => questions.isNotEmpty)) ...[
                 const SizedBox(height: 20),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: primaryRed.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: primaryRed.withOpacity(0.2)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.assignment, color: primaryRed, size: 20),
-                      SizedBox(height: 8),
-                      Text(
-                        "Service Requirements",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: primaryRed),
-                      ),
-                      SizedBox(height: 8),
-                      Text(
-                        "Please provide details about your security service requirements including the number of guards needed, working hours, and specific security services required.",
-                        style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.4),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                // Sort questions by display order and wrap in scrollable container
-                SingleChildScrollView(
-                  child: Column(
-                    children: controller.questions
-                      .toList() // Show all questions regardless of display order
-                      .map((question) {
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0),
-                          child: DynamicQuestionWidget(
-                            question: question,
-                            answer: controller.answers[question.id],
-                            onAnswerChanged: (answer) {
-                              controller.updateAnswer(question.id, answer);
-                            },
-                            primaryColor: primaryRed,
-                            widgetContext: context,
-                          ),
-                        );
-                      }).toList(),
-                  ),
-                ),
-              ],
-              
-              // Show inventory items if available
-              if (controller.inventoryItems != null && controller.inventoryItems!.isNotEmpty) ...[
-                const SizedBox(height: 24),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: primaryRed.withOpacity(0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: primaryRed.withOpacity(0.2)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.inventory, color: primaryRed, size: 20),
-                      const SizedBox(height: 8),
-                      Text(
-                        "Included Equipment & Supplies",
-                        style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: primaryRed),
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                        "The following equipment and supplies are included with this service package:",
-                        style: TextStyle(fontSize: 14, color: Colors.grey[700], height: 1.4),
-                      ),
-                      const SizedBox(height: 16),
-                      // Inventory items list
-                      ...controller.inventoryItems!.map((item) => Container(
-                        margin: const EdgeInsets.only(bottom: 12),
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Row(
-                          children: [
-                            Container(
-                              width: 40,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: primaryRed.withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: Icon(Icons.inventory_2, color: primaryRed, size: 20),
+                // Show only SELECTED services with their questions
+                ...controller.selectedTemplates.map((template) {
+                  // Get questions for this specific template from questionsByTemplate
+                  final templateQuestions = controller.questionsByTemplate[template.id] ?? [];
+                  
+                  // Show all selected services, even if they have no questions
+                  return Container(
+                    width: double.infinity,
+                    constraints: const BoxConstraints(
+                      maxWidth: 350, // Match service type dropdown width
+                    ),
+                    margin: const EdgeInsets.only(bottom: 24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Service title header - always highlighted for selected services
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(16),
+                          decoration: BoxDecoration(
+                            color: primaryRed.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(
+                              color: primaryRed.withOpacity(0.4),
+                              width: 2,
                             ),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    item.inventoryItem.name,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    item.inventoryItem.description,
-                                    style: GoogleFonts.poppins(
-                                      fontSize: 12,
-                                      color: Colors.grey.shade600,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Row(
-                                    children: [
-                                      Text(
-                                        'SKU: ${item.inventoryItem.sku}',
-                                        style: GoogleFonts.poppins(
-                                          fontSize: 11,
-                                          color: Colors.grey.shade500,
-                                        ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: primaryRed.withOpacity(0.1),
+                                blurRadius: 8,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Row(
+                            children: [
+                              Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: primaryRed,
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: const Icon(
+                                  Icons.check_circle,
+                                  color: Colors.white,
+                                  size: 20,
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      template.name,
+                                      style: GoogleFonts.poppins(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w700,
+                                        color: primaryRed,
                                       ),
-                                      const SizedBox(width: 16),
+                                    ),
+                                    if (template.description != null && template.description!.isNotEmpty)
                                       Text(
-                                        'Price: ₹${item.inventoryItem.sellingPrice}',
+                                        template.description!,
                                         style: GoogleFonts.poppins(
                                           fontSize: 12,
-                                          fontWeight: FontWeight.w600,
-                                          color: Colors.green.shade700,
+                                          color: Colors.grey[700],
+                                          fontWeight: FontWeight.w400,
                                         ),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                decoration: BoxDecoration(
+                                  color: primaryRed,
+                                  borderRadius: BorderRadius.circular(20),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: primaryRed.withOpacity(0.3),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Text(
+                                  templateQuestions.isEmpty ? 'No Questions' : '${templateQuestions.length} Questions',
+                                  style: GoogleFonts.poppins(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        // Show questions only if this template has questions
+                        if (templateQuestions.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          // Questions for this service with enhanced styling
+                          Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey.shade300),
+                            ),
+                            child: Column(
+                              children: templateQuestions.asMap().entries.map((entry) {
+                                final index = entry.key;
+                                final question = entry.value;
+                                final isEven = index % 2 == 0;
+                                
+                                return Container(
+                                  width: double.infinity,
+                                  padding: const EdgeInsets.all(16),
+                                  margin: const EdgeInsets.only(bottom: 8),
+                                  decoration: BoxDecoration(
+                                    color: isEven ? Colors.grey[50] : Colors.white,
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(
+                                      color: Colors.grey.shade300,
+                                      width: 1,
+                                    ),
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.grey.withOpacity(0.05),
+                                        blurRadius: 2,
+                                        offset: const Offset(0, 1),
                                       ),
                                     ],
                                   ),
-                                  const SizedBox(height: 8),
-                                  // Quantity selector
+                                  child: DynamicQuestionWidget(
+                                    question: question,
+                                    answer: controller.answers[question.id],
+                                    onAnswerChanged: (answer) {
+                                      controller.updateAnswer(question.id, answer);
+                                    },
+                                    primaryColor: primaryRed,
+                                    widgetContext: context,
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.grey[300]!),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.info_outline, color: Colors.grey, size: 20),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'No additional questions required for this service.',
+                                  style: GoogleFonts.poppins(fontSize: 14, color: Colors.grey),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                        
+                        // Show inventory items for THIS specific template
+                        ...(() {
+                          final templateInventoryItems = controller.inventoryItemsByTemplate[template.id] ?? [];
+                          if (templateInventoryItems.isEmpty) return <Widget>[];
+                          
+                          return [
+                            const SizedBox(height: 16),
+                            Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: primaryRed.withOpacity(0.05),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: primaryRed.withOpacity(0.2)),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
                                   Row(
                                     children: [
+                                      Icon(Icons.inventory, color: primaryRed, size: 18),
+                                      const SizedBox(width: 8),
                                       Text(
-                                        'Quantity:',
+                                        "Equipment & Supplies",
                                         style: GoogleFonts.poppins(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.black87,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600,
+                                          color: primaryRed,
                                         ),
                                       ),
                                       const SizedBox(width: 8),
                                       Container(
+                                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                         decoration: BoxDecoration(
-                                          border: Border.all(color: Colors.grey.shade300),
-                                          borderRadius: BorderRadius.circular(8),
+                                          color: primaryRed,
+                                          borderRadius: BorderRadius.circular(10),
                                         ),
-                                        child: Row(
-                                          mainAxisSize: MainAxisSize.min,
-                                          children: [
-                                            InkWell(
-                                              onTap: () {
-                                                setState(() {
-                                                  final currentQty = inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1);
-                                                  if (currentQty > 1) {
-                                                    inventoryQuantities[item.id] = currentQty - 1;
-                                                  }
-                                                });
-                                              },
-                                              child: Container(
-                                                width: 32,
-                                                height: 32,
-                                                decoration: BoxDecoration(
-                                                  color: primaryRed.withOpacity(0.1),
-                                                  borderRadius: const BorderRadius.only(
-                                                    topLeft: Radius.circular(8),
-                                                    bottomLeft: Radius.circular(8),
-                                                  ),
-                                                ),
-                                                child: Icon(
-                                                  Icons.remove,
-                                                  size: 16,
-                                                  color: primaryRed,
-                                                ),
-                                              ),
-                                            ),
-                                            Container(
-                                              width: 50,
-                                              height: 32,
-                                              alignment: Alignment.center,
-                                              decoration: BoxDecoration(
-                                                border: Border.symmetric(
-                                                  vertical: BorderSide(color: Colors.grey.shade300),
-                                                ),
-                                              ),
-                                              child: Text(
-                                                '${inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1)}',
-                                                style: GoogleFonts.poppins(
-                                                  fontSize: 14,
-                                                  fontWeight: FontWeight.w600,
-                                                  color: Colors.black87,
-                                                ),
-                                              ),
-                                            ),
-                                            InkWell(
-                                              onTap: () {
-                                                setState(() {
-                                                  final currentQty = inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1);
-                                                  inventoryQuantities[item.id] = currentQty + 1;
-                                                });
-                                              },
-                                              child: Container(
-                                                width: 32,
-                                                height: 32,
-                                                decoration: BoxDecoration(
-                                                  color: primaryRed.withOpacity(0.1),
-                                                  borderRadius: const BorderRadius.only(
-                                                    topRight: Radius.circular(8),
-                                                    bottomRight: Radius.circular(8),
-                                                  ),
-                                                ),
-                                                child: Icon(
-                                                  Icons.add,
-                                                  size: 16,
-                                                  color: primaryRed,
-                                                ),
-                                              ),
-                                            ),
-                                          ],
+                                        child: Text(
+                                          '${templateInventoryItems.length}',
+                                          style: GoogleFonts.poppins(
+                                            fontSize: 10,
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w600,
+                                          ),
                                         ),
                                       ),
                                     ],
                                   ),
+                                  const SizedBox(height: 12),
+                                  ...templateInventoryItems.map((item) => Container(
+                                    margin: const EdgeInsets.only(bottom: 8),
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(6),
+                                      border: Border.all(color: Colors.grey.shade200),
+                                    ),
+                                    child: Row(
+                                      children: [
+                                        Container(
+                                          width: 32,
+                                          height: 32,
+                                          decoration: BoxDecoration(
+                                            color: primaryRed.withOpacity(0.1),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Icon(Icons.inventory_2, color: primaryRed, size: 16),
+                                        ),
+                                        const SizedBox(width: 10),
+                                        Expanded(
+                                          child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                item.inventoryItem.name,
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 12,
+                                                  fontWeight: FontWeight.w600,
+                                                  color: Colors.black87,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                item.inventoryItem.description,
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 10,
+                                                  color: Colors.grey.shade600,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                              const SizedBox(height: 2),
+                                              Text(
+                                                'SKU: ${item.inventoryItem.sku} • ${item.inventoryItem.category.name}',
+                                                style: GoogleFonts.poppins(
+                                                  fontSize: 9,
+                                                  color: Colors.grey.shade500,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                        // Quantity selector
+                                        Container(
+                                          decoration: BoxDecoration(
+                                            border: Border.all(color: Colors.grey.shade300),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              InkWell(
+                                                onTap: () {
+                                                  setState(() {
+                                                    final currentQty = inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1);
+                                                    if (currentQty > 1) {
+                                                      inventoryQuantities[item.id] = currentQty - 1;
+                                                    }
+                                                  });
+                                                },
+                                                child: Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  decoration: BoxDecoration(
+                                                    color: primaryRed.withOpacity(0.1),
+                                                    borderRadius: const BorderRadius.only(
+                                                      topLeft: Radius.circular(6),
+                                                      bottomLeft: Radius.circular(6),
+                                                    ),
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.remove,
+                                                    size: 14,
+                                                    color: primaryRed,
+                                                  ),
+                                                ),
+                                              ),
+                                              Container(
+                                                width: 40,
+                                                height: 28,
+                                                alignment: Alignment.center,
+                                                decoration: BoxDecoration(
+                                                  border: Border.symmetric(
+                                                    vertical: BorderSide(color: Colors.grey.shade300),
+                                                  ),
+                                                ),
+                                                child: Text(
+                                                  '${inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1)}',
+                                                  style: GoogleFonts.poppins(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: Colors.black87,
+                                                  ),
+                                                ),
+                                              ),
+                                              InkWell(
+                                                onTap: () {
+                                                  setState(() {
+                                                    final currentQty = inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1);
+                                                    inventoryQuantities[item.id] = currentQty + 1;
+                                                  });
+                                                },
+                                                child: Container(
+                                                  width: 28,
+                                                  height: 28,
+                                                  decoration: BoxDecoration(
+                                                    color: primaryRed.withOpacity(0.1),
+                                                    borderRadius: const BorderRadius.only(
+                                                      topRight: Radius.circular(6),
+                                                      bottomRight: Radius.circular(6),
+                                                    ),
+                                                  ),
+                                                  child: Icon(
+                                                    Icons.add,
+                                                    size: 14,
+                                                    color: primaryRed,
+                                                  ),
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )).toList(),
                                 ],
                               ),
                             ),
-                          ],
-                        ),
-                      )).toList(),
-                    ],
-                  ),
-                ),
-              ] else if (controller.selectedTemplate == null)
+                          ];
+                        })(),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ],
+              
+              // Show error if no templates selected
+              if (controller.selectedTemplates.isEmpty)
                 Container(
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
@@ -2157,14 +2411,14 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(color: Colors.red[200]!),
                   ),
-                  child: const Column(
+                  child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Icon(Icons.error_outline, color: Colors.red, size: 20),
-                      SizedBox(height: 8),
+                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const SizedBox(height: 8),
                       Text(
-                        'Please select a service type in the previous step',
-                        style: TextStyle(fontSize: 14, color: Colors.red),
+                        'Please select service type(s) in the previous step',
+                        style: GoogleFonts.poppins(fontSize: 14, color: Colors.red),
                       ),
                     ],
                   ),
@@ -2173,18 +2427,18 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
             buttonText: "Continue",
             onTap: () {
               // Validate mandatory questions before proceeding
-              if (controller.questions.isNotEmpty && !controller.validateMandatoryQuestions()) {
+              if (controller.questionsByTemplate.values.any((questions) => questions.isNotEmpty) && !controller.validateMandatoryQuestions()) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Please answer all mandatory questions')),
                 );
                 return;
               }
               
-              if (controller.selectedTemplate != null) {
+              if (controller.selectedTemplates.isNotEmpty) {
                 setState(() => currentStep = 2);
               } else {
                 ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Please select a service template')),
+                  const SnackBar(content: Text('Please select service type(s)')),
                 );
               }
             },
@@ -2213,7 +2467,9 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
               _review("Address", addressCtrl.text),
               _review("City", cityCtrl.text),
               _review("State", stateCtrl.text),
-              _review("Service Type", controller.selectedTemplate?.name ?? "Security Service"),
+              _review("Service Type", controller.selectedTemplates.isNotEmpty 
+                  ? controller.selectedTemplates.map((t) => t.name).join(", ") 
+                  : "Security Service"),
               _review("Compliance",
                   withCompliance ? "With compliance" : "Without compliance"),
               if (withCompliance) _review("Compliance Options", complianceSelectedText),
@@ -2226,6 +2482,10 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                 ),
                 const SizedBox(height: 8),
                 Container(
+                  width: double.infinity,
+                  constraints: const BoxConstraints(
+                    maxWidth: 350, // Match service type dropdown width
+                  ),
                   height: 200, // Fixed height for scrollable questions
                   decoration: BoxDecoration(
                     border: Border.all(color: Colors.grey.shade300),
@@ -2278,8 +2538,8 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                 const SizedBox(height: 16),
               ],
 
-              // Show selected inventory items with quantities
-              if (controller.inventoryItems != null && controller.inventoryItems!.isNotEmpty) ...[
+              // Show selected inventory items with quantities from all templates
+              if (controller.selectedTemplates.isNotEmpty) ...[
                 const Text(
                   "Selected Equipment & Supplies",
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
@@ -2295,58 +2555,78 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                     padding: const EdgeInsets.all(12),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: controller.inventoryItems!.map((item) {
-                        final quantity = inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1);
-                        return Padding(
-                          padding: const EdgeInsets.only(bottom: 8.0),
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                      children: controller.selectedTemplates.map((template) {
+                        final templateInventoryItems = controller.inventoryItemsByTemplate[template.id] ?? [];
+                        if (templateInventoryItems.isEmpty) return const SizedBox.shrink();
+                        
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              template.name,
+                              style: const TextStyle(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: primaryRed,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ...templateInventoryItems.map((item) {
+                              final quantity = inventoryQuantities[item.id] ?? (item.defaultQuantity ?? 1);
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 8.0),
+                                child: Row(
+                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                   children: [
-                                    Text(
-                                      item.inventoryItem.name,
-                                      style: const TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w600,
-                                        color: Colors.black87,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(
+                                            item.inventoryItem.name,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              fontWeight: FontWeight.w600,
+                                              color: Colors.black87,
+                                            ),
+                                          ),
+                                          Text(
+                                            'SKU: ${item.inventoryItem.sku}',
+                                            style: TextStyle(
+                                              fontSize: 12,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          ),
+                                        ],
                                       ),
                                     ),
-                                    Text(
-                                      'SKU: ${item.inventoryItem.sku}',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: Colors.grey.shade600,
-                                      ),
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.end,
+                                      children: [
+                                        Text(
+                                          'Qty: $quantity',
+                                          style: const TextStyle(
+                                            fontSize: 14,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        Text(
+                                          '₹${item.inventoryItem.sellingPrice}',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                            color: Colors.green.shade700,
+                                          ),
+                                        ),
+                                      ],
                                     ),
                                   ],
                                 ),
-                              ),
-                              Column(
-                                crossAxisAlignment: CrossAxisAlignment.end,
-                                children: [
-                                  Text(
-                                    'Qty: $quantity',
-                                    style: const TextStyle(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.black87,
-                                    ),
-                                  ),
-                                  Text(
-                                    '₹${item.inventoryItem.sellingPrice}',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.green.shade700,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
+                              );
+                            }).toList(),
+                            const SizedBox(height: 16),
+                          ],
                         );
                       }).toList(),
                     ),
@@ -2363,6 +2643,39 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
         },
       ),
     );
+  }
+
+  // Clear all form data
+  void _clearFormData() {
+    // Reset text controllers
+    nameCtrl.clear();
+    emailCtrl.clear();
+    phoneCtrl.clear();
+    companyCtrl.clear();
+    addressCtrl.clear();
+    cityCtrl.clear();
+    stateCtrl.clear();
+    notesCtrl.clear();
+    pistolCtrl.clear();
+    uniformCtrl.clear();
+    
+    // Reset dropdown selections
+    setState(() {
+      currentStep = 0;
+      guardsCount = 1;
+      shiftType = "Day Shift";
+      withCompliance = false;
+      selectedCompliance.clear();
+      budgetMin = null;
+      budgetMax = null;
+    });
+    
+    // Clear questionnaire data
+    _questionnaireController.clearQuestionsAndAnswers();
+    _questionnaireController.clearSelectedTemplates(); // Clear selected templates
+    
+    // Clear inventory quantities
+    inventoryQuantities.clear();
   }
 
   Future<void> _submitForm(QuestionnaireController controller) async {
@@ -2391,6 +2704,15 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
         );
       }
 
+      // Get logged-in user's ID
+      final userData = await SessionService.getUserData();
+      final salesExecId = userData?.id ?? 33; // Fallback to 33 if user data not found
+      
+      print('=== USER ID DEBUG ===');
+      print('Logged-in User ID: ${userData?.id}');
+      print('Sales Exec ID being sent: $salesExecId');
+      print('====================');
+
       final response = await controller.submitLead(
         companyName: companyCtrl.text,
         contactPersonName: nameCtrl.text,
@@ -2402,8 +2724,8 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
         country: "India", // Default country
         postalCode: "000000", // Default postal code
         leadSource: "website",
-        assignedSalesExecId: 33, // Default sales exec ID
-        serviceTypeId: controller.selectedTemplate?.serviceType.id ?? 1,
+        assignedSalesExecId: salesExecId, // Use logged-in user's ID
+        serviceTypeId: controller.selectedTemplates.isNotEmpty ? controller.selectedTemplates.first.serviceType.id ?? 1 : 1,
         tentativeGuardsCount: 1, // Default value
         workingHoursType: "8", // Default value
         siteType: "office", // Default site type
@@ -2424,10 +2746,16 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
         if (response.success) {
           _showModernSuccessBottomSheet(context, response.message);
           
-          // Navigate back or reset form
-          Future.delayed(const Duration(seconds: 3), () {
+          // Clear form data after successful submission
+          _clearFormData();
+          
+          // Navigate to home screen after showing success message
+          Future.delayed(const Duration(seconds: 2), () {
             if (mounted) {
-              Navigator.pop(context);
+              Navigator.of(context).pushNamedAndRemoveUntil(
+                '/home',
+                (route) => false,
+              );
             }
           });
         } else {
@@ -2558,7 +2886,8 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
                     fontWeight: FontWeight.w500,
                   )),
             ),
-          )
+          ),
+          const SizedBox(height: 40), // Added more space below button
         ],
       ),
     );
@@ -2579,20 +2908,38 @@ class _JobApplicationFormState extends State<JobApplicationForm> {
 
   Widget _field(TextEditingController c, String hint) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: TextField(
-        controller: c,
-        decoration: _dec(hint),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Container(
+        constraints: const BoxConstraints(
+          maxWidth: 320, // Reduced for better mobile compatibility
+        ),
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: TextField(
+            controller: c,
+            decoration: _dec(hint),
+          ),
+        ),
       ),
     );
   }
 
   Widget _fieldWithIcon(TextEditingController c, String hint, IconData icon) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
-      child: TextField(
-        controller: c,
-        decoration: _decWithIcon(hint, icon),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Container(
+        constraints: const BoxConstraints(
+          maxWidth: 320, // Reduced for better mobile compatibility
+        ),
+        width: double.infinity,
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: TextField(
+            controller: c,
+            decoration: _decWithIcon(hint, icon),
+          ),
+        ),
       ),
     );
   }

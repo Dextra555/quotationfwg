@@ -6,10 +6,10 @@ import '../services/session_service.dart';
 
 class QuestionnaireController extends ChangeNotifier {
   List<QuestionnaireTemplate> _templates = [];
-  List<Question> _questions = [];
+  Map<String, List<Question>> _questionsByTemplate = {}; // Store questions by template ID
   Map<String, dynamic> _answers = {};
-  QuestionnaireTemplate? _selectedTemplate;
-  List<InventoryItem>? _inventoryItems;
+  List<QuestionnaireTemplate> _selectedTemplates = []; // Changed to support multiple selections
+  Map<String, List<InventoryItem>> _inventoryItemsByTemplate = {}; // Store inventory items by template ID
   
   bool _isLoadingTemplates = false;
   bool _isLoadingQuestions = false;
@@ -19,10 +19,11 @@ class QuestionnaireController extends ChangeNotifier {
 
   // Getters
   List<QuestionnaireTemplate> get templates => _templates;
-  List<Question> get questions => _questions;
+  Map<String, List<Question>> get questionsByTemplate => _questionsByTemplate;
+  List<Question> get questions => _questionsByTemplate.values.expand((q) => q).toList(); // Flatten all questions
   Map<String, dynamic> get answers => _answers;
-  QuestionnaireTemplate? get selectedTemplate => _selectedTemplate;
-  List<InventoryItem>? get inventoryItems => _inventoryItems;
+  List<QuestionnaireTemplate> get selectedTemplates => _selectedTemplates; // Changed to support multiple selections
+  Map<String, List<InventoryItem>> get inventoryItemsByTemplate => _inventoryItemsByTemplate;
   
   bool get isLoadingTemplates => _isLoadingTemplates;
   bool get isLoadingQuestions => _isLoadingQuestions;
@@ -45,35 +46,39 @@ class QuestionnaireController extends ChangeNotifier {
       final response = await ApiService.getQuestionnaireQuestions(templateId);
       
       if (response.success && response.data.questions.isNotEmpty) {
-        _questions = response.data.questions;
-        _inventoryItems = response.data.inventoryItems; // Store inventory items
-        print('Successfully loaded ${_questions.length} questions and ${_inventoryItems?.length ?? 0} inventory items'); // Debug log
+        _questionsByTemplate[templateId] = response.data.questions;
+        _inventoryItemsByTemplate[templateId] = response.data.inventoryItems ?? []; // Store inventory items by template ID
+        print('Successfully loaded ${response.data.questions.length} questions and ${response.data.inventoryItems?.length ?? 0} inventory items for template: $templateId'); // Debug log
         
-        // Initialize answers with empty values
-        for (var question in _questions) {
+        // Initialize answers for new questions
+        for (var question in response.data.questions) {
           if (!_answers.containsKey(question.id)) {
-            // Set appropriate default answer based on question type
-            switch (question.type.toLowerCase()) {
-              case 'checkbox':
-              case 'multiselect':
-                _answers[question.id] = <String>[];
-                break;
-              case 'number':
-              case 'range':
-                _answers[question.id] = 0;
-                break;
-              case 'rating':
-                _answers[question.id] = 0;
-                break;
-              default:
-                _answers[question.id] = '';
-            }
+            _answers[question.id] = '';
+          }
+        }
+        
+        // Set appropriate default answer based on question type
+        for (var question in response.data.questions) {
+          switch (question.type.toLowerCase()) {
+            case 'checkbox':
+            case 'multiselect':
+              _answers[question.id] = <String>[];
+              break;
+            case 'number':
+            case 'range':
+              _answers[question.id] = 0;
+              break;
+            case 'rating':
+              _answers[question.id] = 0;
+              break;
+            default:
+              _answers[question.id] = '';
           }
         }
       } else {
         // Handle empty questions response
         print('No questions found for template: $templateId'); // Debug log
-        _questions.clear();
+        _questionsByTemplate.remove(templateId);
         _error = 'No questions available for this service type';
       }
       
@@ -100,7 +105,7 @@ class QuestionnaireController extends ChangeNotifier {
       } else if (errorMessage.contains('type') && errorMessage.contains('subtype')) {
         // Handle JSON parsing errors gracefully
         print('JSON parsing error, but continuing with empty questions'); // Debug log
-        _questions.clear();
+        _questionsByTemplate.clear();
         _error = null; // Don't show error for parsing issues, just continue with empty questions
       } else {
         _error = 'Failed to load questions: $errorMessage';
@@ -158,11 +163,38 @@ class QuestionnaireController extends ChangeNotifier {
     }
   }
 
-  // Select a template
+  // Select/deselect a template (for multi-select)
+  void toggleTemplateSelection(String templateId) {
+    final template = _templates.firstWhere(
+      (t) => t.id == templateId,
+      orElse: () => _templates.first,
+    );
+    
+    if (_selectedTemplates.any((t) => t.id == templateId)) {
+      _selectedTemplates.removeWhere((t) => t.id == templateId);
+    } else {
+      _selectedTemplates.add(template);
+    }
+    
+    notifyListeners();
+  }
+
+  // Check if a template is selected
+  bool isTemplateSelected(String templateId) {
+    return _selectedTemplates.any((t) => t.id == templateId);
+  }
+
+  // Clear all selected templates
+  void clearSelectedTemplates() {
+    _selectedTemplates.clear();
+    notifyListeners();
+  }
+
+  // Select a template (kept for backward compatibility)
   void selectTemplate(String? templateId) {
     if (templateId == null) {
-      _selectedTemplate = null;
-      _questions.clear();
+      _selectedTemplates.clear();
+      _questionsByTemplate.clear();
       _answers.clear();
       notifyListeners();
       return;
@@ -172,7 +204,7 @@ class QuestionnaireController extends ChangeNotifier {
       (t) => t.id == templateId,
       orElse: () => _templates.first,
     );
-    _selectedTemplate = template;
+    _selectedTemplates = [template]; // Set as single selection for backward compatibility
     notifyListeners();
   }
 
@@ -184,11 +216,97 @@ class QuestionnaireController extends ChangeNotifier {
     
     try {
       final response = await ApiService.getQuestionnaireQuestions(templateId);
-      _questions = response.data.questions;
-      _selectedTemplate = response.data.template;
+      _questionsByTemplate[templateId] = response.data.questions;
+      // Note: _selectedTemplate is no longer used, keeping for backward compatibility
       
       // Initialize answers with empty values
-      for (var question in _questions) {
+      for (var question in response.data.questions) {
+        _answers[question.id] = '';
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    } finally {
+      _setLoadingQuestions(false);
+    }
+  }
+
+  // Load questions for all selected templates
+  Future<void> loadQuestionsForSelectedTemplates() async {
+    if (_selectedTemplates.isEmpty) {
+      _questionsByTemplate.clear();
+      _answers.clear();
+      notifyListeners();
+      return;
+    }
+    
+    _setLoadingQuestions(true);
+    _error = null;
+    _answers.clear();
+    
+    try {
+      List<Question> allQuestions = [];
+      
+      // Load questions for each selected template
+      for (var template in _selectedTemplates) {
+        if ((template.questionCount ?? 0) > 0) {
+          final response = await ApiService.getQuestionnaireQuestions(template.id);
+          _questionsByTemplate[template.id] = response.data.questions;
+          _inventoryItemsByTemplate[template.id] = response.data.inventoryItems ?? []; // Store inventory items by template ID
+          allQuestions.addAll(response.data.questions);
+        }
+      }
+      
+      // Initialize answers with empty values
+      for (var question in allQuestions) {
+        _answers[question.id] = '';
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      _error = e.toString();
+      notifyListeners();
+    } finally {
+      _setLoadingQuestions(false);
+    }
+  }
+
+  // Load questions for ALL templates (for showing all services with questions)
+  Future<void> loadQuestionsForAllTemplates() async {
+    if (_templates.isEmpty) {
+      _questionsByTemplate.clear();
+      _answers.clear();
+      notifyListeners();
+      return;
+    }
+    
+    _setLoadingQuestions(true);
+    _error = null;
+    _answers.clear();
+    
+    try {
+      List<Question> allQuestions = [];
+      
+      // Load questions for ALL templates
+      for (var template in _templates) {
+        if ((template.questionCount ?? 0) > 0) {
+          try {
+            final response = await ApiService.getQuestionnaireQuestions(template.id);
+            _questionsByTemplate[template.id] = response.data.questions;
+            _inventoryItemsByTemplate[template.id] = response.data.inventoryItems ?? []; // Store inventory items by template ID
+            allQuestions.addAll(response.data.questions);
+          } catch (e) {
+            print('Failed to load questions for template ${template.name}: $e');
+            // Continue with other templates even if one fails
+            _questionsByTemplate[template.id] = [];
+          }
+        }
+      }
+      
+      // Initialize answers with empty values
+      for (var question in allQuestions) {
         _answers[question.id] = '';
       }
       
@@ -225,7 +343,7 @@ class QuestionnaireController extends ChangeNotifier {
 
   // Validate mandatory questions
   bool validateMandatoryQuestions() {
-    for (var question in _questions) {
+    for (var question in questions) {
       if (question.isMandatory) {
         final answer = _answers[question.id];
         
@@ -246,7 +364,7 @@ class QuestionnaireController extends ChangeNotifier {
 
   // Get unanswered mandatory questions
   List<Question> getUnansweredMandatoryQuestions() {
-    return _questions.where((question) {
+    return questions.where((question) {
       if (!question.isMandatory) return false;
       
       final answer = _answers[question.id];
@@ -331,7 +449,7 @@ class QuestionnaireController extends ChangeNotifier {
         postalCode: postalCode,
         leadSource: leadSource,
         assignedSalesExecId: assignedSalesExecId,
-        serviceTypeId: serviceTypeId,
+        serviceTypeId: _selectedTemplates.isNotEmpty ? _selectedTemplates.first.serviceType.id ?? 1 : 1, // Use first selected template's service type
         tentativeGuardsCount: tentativeGuardsCount,
         workingHoursType: workingHoursType,
         siteType: siteType,
@@ -414,36 +532,52 @@ class QuestionnaireController extends ChangeNotifier {
 
   // Get selected inventory items with quantities
   List<Map<String, dynamic>> getSelectedInventoryItems(Map<String, int> quantities) {
-    if (_inventoryItems == null || _inventoryItems!.isEmpty) {
-      return [];
+    List<Map<String, dynamic>> allSelectedItems = [];
+    
+    // Collect inventory items from all selected templates
+    for (var template in _selectedTemplates) {
+      final templateInventoryItems = _inventoryItemsByTemplate[template.id] ?? [];
+      
+      for (var item in templateInventoryItems) {
+        final quantity = quantities[item.id] ?? (item.defaultQuantity ?? 1);
+        allSelectedItems.add({
+          'template_inventory_item_id': item.id,
+          'quantity': quantity,
+        });
+      }
     }
     
-    return _inventoryItems!.map((item) {
-      final quantity = quantities[item.id] ?? (item.defaultQuantity ?? 1);
-      return {
-        'template_inventory_item_id': item.id,
-        'quantity': quantity,
-      };
-    }).toList();
+    return allSelectedItems;
   }
 
   // Clear all data
   void clearData() {
     _templates.clear();
-    _questions.clear();
+    _questionsByTemplate.clear();
     _answers.clear();
-    _selectedTemplate = null;
+    _selectedTemplates.clear();
     _error = null;
     notifyListeners();
   }
 
   // Clear questions and answers only (when template changes)
   void clearQuestionsAndAnswers() {
-    _questions.clear();
+    _questionsByTemplate.clear();
     _answers.clear();
-    _inventoryItems = null; // Clear inventory items
+    _inventoryItemsByTemplate.clear(); // Clear inventory items by template
     _error = null;
     _hasAttemptedLoad = false; // Reset flag when template changes
+    notifyListeners();
+  }
+
+  // Clear all data including selected templates
+  void clearAllData() {
+    _templates.clear();
+    _questionsByTemplate.clear();
+    _answers.clear();
+    _selectedTemplates.clear();
+    _inventoryItemsByTemplate.clear(); // Clear inventory items by template
+    _error = null;
     notifyListeners();
   }
 

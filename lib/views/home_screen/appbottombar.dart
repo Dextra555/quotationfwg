@@ -22,58 +22,59 @@ class AppBottomBar extends StatelessWidget {
       );
     }
 
-    return SafeArea(
-      child: Container(
-        margin: const EdgeInsets.fromLTRB(8, 4, 8, 4),
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        decoration: BoxDecoration(
-          color: primaryRed,
-          borderRadius: BorderRadius.circular(30),
-          boxShadow: [
-            BoxShadow(
-              color: primaryRed.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 4),
+    // Get bottom padding to avoid system navigation bar
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
+    
+    return Container(
+      margin: EdgeInsets.fromLTRB(24, 4, 24, bottomPadding > 0 ? bottomPadding + 4 : 8),
+      padding: const EdgeInsets.symmetric(vertical: 10),
+      decoration: BoxDecoration(
+        color: primaryRed,
+        borderRadius: BorderRadius.circular(30),
+        boxShadow: [
+          BoxShadow(
+            color: primaryRed.withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: [
+          GestureDetector(
+            onTap: () => onTap(0),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: _icon(Icons.home, 0),
             ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            GestureDetector(
-              onTap: () => onTap(0),
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _icon(Icons.home, 0),
-              ),
+          ),
+          GestureDetector(
+            onTap: () => onTap(1),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: _icon(Icons.person_outline, 1),
             ),
-            GestureDetector(
-              onTap: () => onTap(1),
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _icon(Icons.person_outline, 1),
-              ),
+          ),
+          GestureDetector(
+            onTap: () => onTap(2),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: _icon(Icons.mail_outline, 2),
             ),
-            GestureDetector(
-              onTap: () => onTap(2),
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _icon(Icons.mail_outline, 2),
-              ),
+          ),
+          GestureDetector(
+            onTap: () => onTap(3),
+            behavior: HitTestBehavior.opaque,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: _icon(Icons.smart_toy_outlined, 3),
             ),
-            GestureDetector(
-              onTap: () => onTap(3),
-              behavior: HitTestBehavior.opaque,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: _icon(Icons.smart_toy_outlined, 3),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

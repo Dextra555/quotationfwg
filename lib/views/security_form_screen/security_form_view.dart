@@ -51,43 +51,53 @@ class _SecurityFormPageState extends State<SecurityFormPage> {
                 _label("Type of Security Required:"),
                 const SizedBox(height: 8),
 
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _chip("Residential Security"),
-                    _chip("Corporate/Office Security"),
-                    _chip("Night Patrol"),
-                    _chip("Industrial Security"),
-                    _chip("Event Security"),
-                  ],
+                SizedBox(
+                  width: double.infinity,
+                  child: Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _chip("Residential Security"),
+                      _chip("Corporate/Office Security"),
+                      _chip("Night Patrol"),
+                      _chip("Industrial Security"),
+                      _chip("Event Security"),
+                    ],
+                  ),
                 ),
 
                 const SizedBox(height: 20),
                 _label("Number of Guards Required"),
                 const SizedBox(height: 8),
 
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.black),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      _squareBtn(Icons.remove, () {
-                        if (guards > 1) setState(() => guards--);
-                      }),
-                      const SizedBox(width: 20),
-                      Text("$guards",
-                          style: GoogleFonts.poppins(
-                              fontSize: 22, fontWeight: FontWeight.w700)),
-                      const SizedBox(width: 20),
-                      _squareBtn(Icons.add, () {
-                        setState(() => guards++);
-                      }),
-                    ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: Container(
+                    constraints: const BoxConstraints(
+                      maxWidth: 320, // Reduced for better mobile compatibility
+                    ),
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.black),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _squareBtn(Icons.remove, () {
+                          if (guards > 1) setState(() => guards--);
+                        }),
+                        const SizedBox(width: 20),
+                        Text("$guards",
+                            style: GoogleFonts.poppins(
+                                fontSize: 22, fontWeight: FontWeight.w700)),
+                        const SizedBox(width: 20),
+                        _squareBtn(Icons.add, () {
+                          setState(() => guards++);
+                        }),
+                      ],
+                    ),
                   ),
                 ),
 
@@ -107,21 +117,28 @@ class _SecurityFormPageState extends State<SecurityFormPage> {
                 _label("Duration"),
                 const SizedBox(height: 6),
 
-                GestureDetector(
-                  onTap: () => _openDurationPicker(),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-                    decoration: BoxDecoration(
-                      border: Border.all(color: Colors.black),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(duration ?? "Select",
-                            style: GoogleFonts.poppins(fontSize: 15)),
-                        Icon(Icons.arrow_drop_down, color: maroon),
-                      ],
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  child: GestureDetector(
+                    onTap: () => _openDurationPicker(),
+                    child: Container(
+                      constraints: const BoxConstraints(
+                        maxWidth: 320, // Reduced for better mobile compatibility
+                      ),
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.black),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(duration ?? "Select",
+                              style: GoogleFonts.poppins(fontSize: 15)),
+                          Icon(Icons.arrow_drop_down, color: maroon),
+                        ],
+                      ),
                     ),
                   ),
                 ),
@@ -222,16 +239,25 @@ class _SecurityFormPageState extends State<SecurityFormPage> {
 
   Widget _input(String label,
       {IconData? prefix, int maxLines = 1, String? hint, Color? color}) {
-    return TextField(
-      maxLines: maxLines,
-      style: GoogleFonts.poppins(),
-      decoration: InputDecoration(
-        prefixIcon: prefix != null ? Icon(prefix, color: color) : null,
-        labelText: label,
-        labelStyle: GoogleFonts.poppins(color: Colors.grey[700]),
-        hintText: hint,
-        hintStyle: GoogleFonts.poppins(color: Colors.grey),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      child: Container(
+        constraints: const BoxConstraints(
+          maxWidth: 320, // Reduced for better mobile compatibility
+        ),
+        width: double.infinity,
+        child: TextField(
+          maxLines: maxLines,
+          style: GoogleFonts.poppins(),
+          decoration: InputDecoration(
+            prefixIcon: prefix != null ? Icon(prefix, color: color) : null,
+            labelText: label,
+            labelStyle: GoogleFonts.poppins(color: Colors.grey[700]),
+            hintText: hint,
+            hintStyle: GoogleFonts.poppins(color: Colors.grey),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+        ),
       ),
     );
   }

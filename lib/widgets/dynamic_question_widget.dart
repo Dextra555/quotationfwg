@@ -3,7 +3,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../models/questionnaire_template_model.dart';
 import '../controllers/questionnaire_controller.dart';
 
-class DynamicQuestionWidget extends StatelessWidget {
+class DynamicQuestionWidget extends StatefulWidget {
   final Question question;
   final dynamic answer;
   final Function(dynamic) onAnswerChanged;
@@ -20,6 +20,50 @@ class DynamicQuestionWidget extends StatelessWidget {
   });
 
   @override
+  State<DynamicQuestionWidget> createState() => _DynamicQuestionWidgetState();
+}
+
+class _DynamicQuestionWidgetState extends State<DynamicQuestionWidget> {
+  late TextEditingController _textController;
+
+  @override
+  void initState() {
+    super.initState();
+    _textController = TextEditingController(text: widget.answer?.toString() ?? '');
+  }
+
+  // @override
+  // void didUpdateWidget(DynamicQuestionWidget oldWidget) {
+  //   super.didUpdateWidget(oldWidget);
+  //   // Update controller text if answer changed from outside
+  //   if (oldWidget.answer != widget.answer) {
+  //     _textController.text = widget.answer?.toString() ?? '';
+  //   }
+  // }
+
+
+  @override
+void didUpdateWidget(DynamicQuestionWidget oldWidget) {
+  super.didUpdateWidget(oldWidget);
+
+  // Only update controller when value REALLY changed from outside
+  if (oldWidget.answer != widget.answer &&
+      _textController.text != widget.answer?.toString()) {
+    _textController.text = widget.answer?.toString() ?? '';
+    _textController.selection = TextSelection.fromPosition(
+      TextPosition(offset: _textController.text.length),
+    );
+  }
+}
+
+
+  @override
+  void dispose() {
+    _textController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -29,7 +73,7 @@ class DynamicQuestionWidget extends StatelessWidget {
           children: [
             Flexible(
               child: Text(
-                question.text + (question.isMandatory ? ' *' : ''),
+                widget.question.text + (widget.question.isMandatory ? ' *' : ''),
                 style: GoogleFonts.poppins(
                   fontSize: 16,
                   fontWeight: FontWeight.w500,
@@ -38,7 +82,7 @@ class DynamicQuestionWidget extends StatelessWidget {
                 maxLines: 3,
               ),
             ),
-            if (question.isMandatory)
+            if (widget.question.isMandatory)
               Text(
                 '*',
                 style: GoogleFonts.poppins(
@@ -50,10 +94,10 @@ class DynamicQuestionWidget extends StatelessWidget {
           ],
         ),
         
-        if (question.helpText != null) ...[
+        if (widget.question.helpText != null) ...[
           const SizedBox(height: 4),
           Text(
-            question.helpText!,
+            widget.question.helpText!,
             style: GoogleFonts.poppins(
               fontSize: 12,
               color: Colors.grey[600],
@@ -73,8 +117,8 @@ class DynamicQuestionWidget extends StatelessWidget {
 
   Widget _buildQuestionInput() {
     try {
-      final questionType = question.type.toLowerCase();
-      print('Building question input for type: ${question.type}'); // Debug log
+      final questionType = widget.question.type.toLowerCase();
+      print('Building question input for type: ${widget.question.type}'); // Debug log
       
       // Handle any possible question type dynamically
       switch (questionType) {
@@ -136,347 +180,420 @@ class DynamicQuestionWidget extends StatelessWidget {
           return _buildRatingInput();
         default:
           // For unknown types, try to determine best input based on question text or options
-          print('Unknown question type: ${question.type}, analyzing to determine best input');
+          print('Unknown question type: ${widget.question.type}, analyzing to determine best input');
           return _buildDynamicFallback();
       }
     } catch (e) {
-      print('Error building question input for type ${question.type}: $e');
+      print('Error building question input for type ${widget.question.type}: $e');
       // Return a simple text input as ultimate fallback
       return _buildTextInput();
     }
   }
 
   Widget _buildTextInput() {
-    return TextField(
-      controller: TextEditingController(text: answer?.toString() ?? ''),
-      maxLines: question.type.toLowerCase() == 'textarea' ? 4 : 1,
-      decoration: InputDecoration(
-        hintText: 'Enter ${question.text.toLowerCase()}',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: primaryColor),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: TextField(
+          controller: _textController,
+          maxLines: widget.question.type.toLowerCase() == 'textarea' ? 4 : 1,
+          decoration: InputDecoration(
+            hintText: 'Enter ${widget.question.text.toLowerCase()}',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: widget.primaryColor),
+            ),
+          ),
+          onChanged: (value) => widget.onAnswerChanged(value),
         ),
       ),
-      onChanged: (value) => onAnswerChanged(value),
     );
   }
 
   Widget _buildNumberInput() {
-    return TextField(
-      controller: TextEditingController(text: answer?.toString() ?? ''),
-      keyboardType: TextInputType.number,
-      decoration: InputDecoration(
-        hintText: 'Enter number',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: primaryColor),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: TextField(
+          controller: _textController,
+          keyboardType: TextInputType.number,
+          decoration: InputDecoration(
+            hintText: 'Enter number',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: widget.primaryColor),
+            ),
+          ),
+          onChanged: (value) {
+            final numValue = int.tryParse(value) ?? 0;
+            widget.onAnswerChanged(numValue);
+          },
         ),
       ),
-      onChanged: (value) {
-        final numValue = int.tryParse(value) ?? 0;
-        onAnswerChanged(numValue);
-      },
     );
   }
 
   Widget _buildDropdown() {
-    if (question.options == null || question.options!.isEmpty) {
+    if (widget.question.options == null || widget.question.options!.isEmpty) {
       return TextField(
-        controller: TextEditingController(text: answer?.toString() ?? ''),
+        controller: _textController,
         decoration: InputDecoration(
-          hintText: 'Enter ${question.text.toLowerCase()}',
+          hintText: 'Enter ${widget.question.text.toLowerCase()}',
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
             borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide(color: primaryColor),
+            borderSide: BorderSide(color: widget.primaryColor),
           ),
         ),
-        onChanged: (value) => onAnswerChanged(value),
+        onChanged: (value) => widget.onAnswerChanged(value),
       );
     }
 
-    return DropdownButtonFormField<String>(
-      value: answer?.toString().isNotEmpty == true ? answer.toString() : null,
-      items: question.options!.map((option) {
-        return DropdownMenuItem<String>(
-          value: option,
-          child: Text(option),
-        );
-      }).toList(),
-      onChanged: (value) => onAnswerChanged(value),
-      decoration: InputDecoration(
-        hintText: 'Select an option',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: primaryColor),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: DropdownButtonFormField<String>(
+          value: widget.answer?.toString().isNotEmpty == true ? widget.answer.toString() : null,
+          items: widget.question.options!.map((option) {
+            return DropdownMenuItem<String>(
+              value: option,
+              child: Text(option),
+            );
+          }).toList(),
+          onChanged: (value) => widget.onAnswerChanged(value),
+          decoration: InputDecoration(
+            hintText: 'Select an option',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: widget.primaryColor),
+            ),
+          ),
         ),
       ),
     );
   }
 
   Widget _buildMCQ() {
-    if (question.options == null || question.options!.isEmpty) {
+    if (widget.question.options == null || widget.question.options!.isEmpty) {
       return TextField(
-        controller: TextEditingController(text: answer?.toString() ?? ''),
+        controller: _textController,
         decoration: InputDecoration(
-          hintText: 'Enter ${question.text.toLowerCase()}',
+          hintText: 'Enter ${widget.question.text.toLowerCase()}',
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
             borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide(color: primaryColor),
+            borderSide: BorderSide(color: widget.primaryColor),
           ),
         ),
-        onChanged: (value) => onAnswerChanged(value),
+        onChanged: (value) => widget.onAnswerChanged(value),
       );
     }
 
-    return Column(
-      children: question.options!.map((option) {
-        final isSelected = answer?.toString() == option;
-        return InkWell(
-          onTap: () => onAnswerChanged(option),
-          child: Container(
-            padding: const EdgeInsets.all(12),
-            margin: const EdgeInsets.only(bottom: 8),
-            decoration: BoxDecoration(
-              border: Border.all(
-                color: isSelected ? primaryColor : const Color(0xFFE0E0E0),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(widget.question.text,
+                style: GoogleFonts.poppins(
+                    fontSize: 15, fontWeight: FontWeight.w500)),
+            if (widget.question.helpText != null)
+              Padding(
+                padding: const EdgeInsets.only(top: 4.0, bottom: 8.0),
+                child: Text(widget.question.helpText!,
+                    style: GoogleFonts.poppins(fontSize: 13, color: Colors.grey[600])),
               ),
-              borderRadius: BorderRadius.circular(6),
-              color: isSelected ? primaryColor.withOpacity(0.1) : Colors.white,
-            ),
-            child: Row(
-              children: [
-                Radio<String>(
-                  value: option,
-                  groupValue: answer?.toString(),
-                  activeColor: primaryColor,
-                  onChanged: (value) => onAnswerChanged(value),
-                ),
-                Flexible(
-                  child: Text(
-                    option,
-                    style: GoogleFonts.poppins(
-                      color: isSelected ? primaryColor : Colors.black,
-                      fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+            const SizedBox(height: 8),
+            Container(
+              decoration: BoxDecoration(
+                border: Border.all(color: const Color(0xFFE0E0E0)),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Column(
+                children: widget.question.options!.map((option) {
+                  final isSelected = widget.answer?.toString() == option;
+                  return InkWell(
+                    onTap: () => widget.onAnswerChanged(option),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      child: Row(
+                        children: [
+                          Radio<String>(
+                            value: option,
+                            groupValue: widget.answer?.toString(),
+                            activeColor: widget.primaryColor,
+                            onChanged: (value) => widget.onAnswerChanged(value),
+                          ),
+                          Flexible(
+                            child: Text(
+                              option,
+                              style: GoogleFonts.poppins(
+                                color: isSelected ? widget.primaryColor : Colors.black,
+                                fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                              ),
+                              overflow: TextOverflow.visible,
+                              maxLines: 2,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
-                    overflow: TextOverflow.visible,
-                    maxLines: 2,
-                  ),
-                ),
-              ],
+                  );
+                }).toList(),
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          ],
+        ),
+      ),
     );
   }
 
   Widget _buildCheckbox() {
-    if (question.options == null || question.options!.isEmpty) {
+    if (widget.question.options == null || widget.question.options!.isEmpty) {
       return TextField(
-        controller: TextEditingController(text: answer?.toString() ?? ''),
+        controller: _textController,
         decoration: InputDecoration(
-          hintText: 'Enter ${question.text.toLowerCase()}',
+          hintText: 'Enter ${widget.question.text.toLowerCase()}',
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
             borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide(color: primaryColor),
+            borderSide: BorderSide(color: widget.primaryColor),
           ),
         ),
-        onChanged: (value) => onAnswerChanged(value),
+        onChanged: (value) => widget.onAnswerChanged(value),
       );
     }
 
-    final selectedOptions = answer is List ? List<String>.from(answer) : <String>[];
+    final selectedOptions = widget.answer is List ? List<String>.from(widget.answer) : <String>[];
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        border: Border.all(color: const Color(0xFFE0E0E0)),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Column(
-        children: question.options!.map((option) {
-          final isSelected = selectedOptions.contains(option);
-          return InkWell(
-            onTap: () {
-              final newSelectedOptions = List<String>.from(selectedOptions);
-              if (isSelected) {
-                newSelectedOptions.remove(option);
-              } else {
-                newSelectedOptions.add(option);
-              }
-              onAnswerChanged(newSelectedOptions);
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4),
-              child: Row(
-                children: [
-                  Checkbox(
-                    value: isSelected,
-                    activeColor: primaryColor,
-                    onChanged: (value) {
-                      final newSelectedOptions = List<String>.from(selectedOptions);
-                      if (value == true) {
-                        if (!newSelectedOptions.contains(option)) {
-                          newSelectedOptions.add(option);
-                        }
-                      } else {
-                        newSelectedOptions.remove(option);
-                      }
-                      onAnswerChanged(newSelectedOptions);
-                    },
-                  ),
-                  Flexible(
-                    child: Text(
-                      option,
-                      style: GoogleFonts.poppins(
-                        color: isSelected ? primaryColor : Colors.black,
-                        fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: Container(
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFE0E0E0)),
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Column(
+            children: widget.question.options!.map((option) {
+              final isSelected = selectedOptions.contains(option);
+              return InkWell(
+                onTap: () {
+                  final newSelectedOptions = List<String>.from(selectedOptions);
+                  if (isSelected) {
+                    newSelectedOptions.remove(option);
+                  } else {
+                    newSelectedOptions.add(option);
+                  }
+                  widget.onAnswerChanged(newSelectedOptions);
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4),
+                  child: Row(
+                    children: [
+                      Checkbox(
+                        value: isSelected,
+                        activeColor: widget.primaryColor,
+                        onChanged: (value) {
+                          final newSelectedOptions = List<String>.from(selectedOptions);
+                          if (value == true) {
+                            if (!newSelectedOptions.contains(option)) {
+                              newSelectedOptions.add(option);
+                            }
+                          } else {
+                            newSelectedOptions.remove(option);
+                          }
+                          widget.onAnswerChanged(newSelectedOptions);
+                        },
                       ),
-                      overflow: TextOverflow.visible,
-                      maxLines: 2,
-                    ),
+                      Flexible(
+                        child: Text(
+                          option,
+                          style: GoogleFonts.poppins(
+                            color: isSelected ? widget.primaryColor : Colors.black,
+                            fontWeight: isSelected ? FontWeight.w500 : FontWeight.normal,
+                          ),
+                          overflow: TextOverflow.visible,
+                          maxLines: 2,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
-            ),
-          );
-        }).toList(),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
       ),
     );
   }
 
   Widget _buildDateInput() {
-    return TextField(
-      controller: TextEditingController(text: answer?.toString() ?? ''),
-      readOnly: true,
-      decoration: InputDecoration(
-        hintText: 'Select date',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: TextField(
+          controller: TextEditingController(text: widget.answer?.toString() ?? ''),
+          readOnly: true,
+          decoration: InputDecoration(
+            hintText: 'Select date',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: widget.primaryColor),
+            ),
+            suffixIcon: Icon(Icons.calendar_today, color: widget.primaryColor),
+          ),
+          onTap: () async {
+            final DateTime? picked = await showDatePicker(
+              context: widget.widgetContext,
+              initialDate: DateTime.now(),
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2101),
+            );
+            if (picked != null) {
+              widget.onAnswerChanged(picked.toIso8601String().split('T')[0]);
+            }
+          },
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: primaryColor),
-        ),
-        suffixIcon: Icon(Icons.calendar_today, color: primaryColor),
       ),
-      onTap: () async {
-        final DateTime? picked = await showDatePicker(
-          context: widgetContext,
-          initialDate: DateTime.now(),
-          firstDate: DateTime(2000),
-          lastDate: DateTime(2101),
-        );
-        if (picked != null) {
-          onAnswerChanged(picked.toIso8601String().split('T')[0]);
-        }
-      },
     );
   }
 
   Widget _buildEmailInput() {
-    return TextField(
-      controller: TextEditingController(text: answer?.toString() ?? ''),
-      keyboardType: TextInputType.emailAddress,
-      decoration: InputDecoration(
-        hintText: 'Enter email address',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: primaryColor),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: TextField(
+          controller: _textController,
+          keyboardType: TextInputType.emailAddress,
+          decoration: InputDecoration(
+            hintText: 'Enter email address',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: widget.primaryColor),
+            ),
+          ),
+          onChanged: (value) => widget.onAnswerChanged(value),
         ),
       ),
-      onChanged: (value) => onAnswerChanged(value),
     );
   }
 
   Widget _buildPhoneInput() {
-    return TextField(
-      controller: TextEditingController(text: answer?.toString() ?? ''),
-      keyboardType: TextInputType.phone,
-      decoration: InputDecoration(
-        hintText: 'Enter phone number',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: primaryColor),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: TextField(
+          controller: _textController,
+          keyboardType: TextInputType.phone,
+          decoration: InputDecoration(
+            hintText: 'Enter phone number',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: widget.primaryColor),
+            ),
+          ),
+          onChanged: (value) => widget.onAnswerChanged(value),
         ),
       ),
-      onChanged: (value) => onAnswerChanged(value),
     );
   }
 
   Widget _buildUrlInput() {
-    return TextField(
-      controller: TextEditingController(text: answer?.toString() ?? ''),
-      keyboardType: TextInputType.url,
-      decoration: InputDecoration(
-        hintText: 'Enter website URL',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: primaryColor),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: TextField(
+          controller: _textController,
+          keyboardType: TextInputType.url,
+          decoration: InputDecoration(
+            hintText: 'Enter website URL',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: widget.primaryColor),
+            ),
+          ),
+          onChanged: (value) => widget.onAnswerChanged(value),
         ),
       ),
-      onChanged: (value) => onAnswerChanged(value),
     );
   }
 
   Widget _buildPasswordInput() {
-    return TextField(
-      controller: TextEditingController(text: answer?.toString() ?? ''),
-      obscureText: true,
-      decoration: InputDecoration(
-        hintText: 'Enter password',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: primaryColor),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: TextField(
+          controller: _textController,
+          obscureText: true,
+          decoration: InputDecoration(
+            hintText: 'Enter password',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: widget.primaryColor),
+            ),
+          ),
+          onChanged: (value) => widget.onAnswerChanged(value),
         ),
       ),
-      onChanged: (value) => onAnswerChanged(value),
     );
   }
 
   Widget _buildRangeInput() {
-    double currentValue = double.tryParse(answer?.toString() ?? '0') ?? 0;
+    double currentValue = double.tryParse(widget.answer?.toString() ?? '0') ?? 0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -486,8 +603,8 @@ class DynamicQuestionWidget extends StatelessWidget {
           min: 0,
           max: 100,
           divisions: 20,
-          activeColor: primaryColor,
-          onChanged: (value) => onAnswerChanged(value.toInt()),
+          activeColor: widget.primaryColor,
+          onChanged: (value) => widget.onAnswerChanged(value.toInt()),
         ),
       ],
     );
@@ -502,13 +619,13 @@ class DynamicQuestionWidget extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Icon(Icons.upload_file, color: primaryColor),
+          Icon(Icons.upload_file, color: widget.primaryColor),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
-              answer?.toString().isNotEmpty == true ? answer.toString() : 'Tap to select file',
+              widget.answer?.toString().isNotEmpty == true ? widget.answer.toString() : 'Tap to select file',
               style: TextStyle(
-                color: answer?.toString().isNotEmpty == true ? Colors.black : Colors.grey,
+                color: widget.answer?.toString().isNotEmpty == true ? Colors.black : Colors.grey,
               ),
             ),
           ),
@@ -516,7 +633,7 @@ class DynamicQuestionWidget extends StatelessWidget {
             icon: const Icon(Icons.browse_gallery),
             onPressed: () {
               // File picker functionality would go here
-              onAnswerChanged('file_selected_${DateTime.now().millisecondsSinceEpoch}');
+              widget.onAnswerChanged('file_selected_${DateTime.now().millisecondsSinceEpoch}');
             },
           ),
         ],
@@ -525,35 +642,41 @@ class DynamicQuestionWidget extends StatelessWidget {
   }
 
   Widget _buildTimeInput() {
-    return TextField(
-      controller: TextEditingController(text: answer?.toString() ?? ''),
-      readOnly: true,
-      decoration: InputDecoration(
-        hintText: 'Select time',
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        width: double.infinity,
+        child: TextField(
+          controller: TextEditingController(text: widget.answer?.toString() ?? ''),
+          readOnly: true,
+          decoration: InputDecoration(
+            hintText: 'Select time',
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: const BorderSide(color: Color(0xFFE0E0E0)),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(6),
+              borderSide: BorderSide(color: widget.primaryColor),
+            ),
+            suffixIcon: Icon(Icons.access_time, color: widget.primaryColor),
+          ),
+          onTap: () async {
+            final TimeOfDay? picked = await showTimePicker(
+              context: widget.widgetContext,
+              initialTime: TimeOfDay.now(),
+            );
+            if (picked != null) {
+              widget.onAnswerChanged('${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
+            }
+          },
         ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(6),
-          borderSide: BorderSide(color: primaryColor),
-        ),
-        suffixIcon: Icon(Icons.access_time, color: primaryColor),
       ),
-      onTap: () async {
-        final TimeOfDay? picked = await showTimePicker(
-          context: widgetContext,
-          initialTime: TimeOfDay.now(),
-        );
-        if (picked != null) {
-          onAnswerChanged('${picked.hour.toString().padLeft(2, '0')}:${picked.minute.toString().padLeft(2, '0')}');
-        }
-      },
     );
   }
 
   Widget _buildRatingInput() {
-    int rating = int.tryParse(answer?.toString() ?? '0') ?? 0;
+    int rating = int.tryParse(widget.answer?.toString() ?? '0') ?? 0;
     return Row(
       children: List.generate(5, (index) {
         return IconButton(
@@ -561,7 +684,7 @@ class DynamicQuestionWidget extends StatelessWidget {
             index < rating ? Icons.star : Icons.star_border,
             color: Colors.amber,
           ),
-          onPressed: () => onAnswerChanged(index + 1),
+          onPressed: () => widget.onAnswerChanged(index + 1),
         );
       }),
     );
@@ -569,11 +692,11 @@ class DynamicQuestionWidget extends StatelessWidget {
 
   Widget _buildDynamicFallback() {
     // Analyze question text and options to determine best input type
-    final questionText = question.text.toLowerCase();
+    final questionText = widget.question.text.toLowerCase();
     
     // Check if it has options - if yes, use dropdown or MCQ
-    if (question.options != null && question.options!.isNotEmpty) {
-      if (question.options!.length <= 5) {
+    if (widget.question.options != null && widget.question.options!.isNotEmpty) {
+      if (widget.question.options!.length <= 5) {
         return _buildMCQ(); // Use radio buttons for few options
       } else {
         return _buildDropdown(); // Use dropdown for many options
@@ -595,7 +718,7 @@ class DynamicQuestionWidget extends StatelessWidget {
       return _buildNumberInput();
     } else if (questionText.contains('describe') || questionText.contains('details') || questionText.contains('comment')) {
       return TextField(
-        controller: TextEditingController(text: answer?.toString() ?? ''),
+        controller: _textController,
         maxLines: 4,
         decoration: InputDecoration(
           hintText: 'Enter details here...',
@@ -605,10 +728,10 @@ class DynamicQuestionWidget extends StatelessWidget {
           ),
           focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(6),
-            borderSide: BorderSide(color: primaryColor),
+            borderSide: BorderSide(color: widget.primaryColor),
           ),
         ),
-        onChanged: (value) => onAnswerChanged(value),
+        onChanged: (value) => widget.onAnswerChanged(value),
       );
     }
     
