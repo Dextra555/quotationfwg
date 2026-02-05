@@ -6,6 +6,10 @@ import 'package:get/get.dart';
 
 import '../../models/login_response_model.dart';
 
+import '../../services/api_service.dart';
+
+import '../../services/session_service.dart';
+
 import 'form.dart';
 
 import 'quotataion.dart';
@@ -22,11 +26,64 @@ import 'drawer.dart';
 
 
 
-class SalesDashboardUI extends StatelessWidget {
-
+class SalesDashboardUI extends StatefulWidget {
   const SalesDashboardUI({super.key});
 
-  
+  @override
+  State<SalesDashboardUI> createState() => _SalesDashboardUIState();
+}
+
+class _SalesDashboardUIState extends State<SalesDashboardUI> {
+  Map<String, dynamic> leadCounts = {
+    'total_leads': 0,
+    'today_leads': 0,
+    'converted_leads': 0,
+  };
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchLeadCounts();
+  }
+
+  Future<void> _fetchLeadCounts() async {
+    try {
+      final token = await SessionService.getToken();
+      print('=== DEBUG: Token = $token ===');
+      
+      if (token != null) {
+        print('=== DEBUG: Calling API with token ===');
+        final response = await ApiService.getLeadCounts(token);
+        print('=== DEBUG: API Response = $response ===');
+        
+        // Extract data from response
+        if (response['success'] == true && response['data'] != null) {
+          final counts = response['data'];
+          print('=== DEBUG: Extracted counts = $counts ===');
+          setState(() {
+            leadCounts = counts;
+            isLoading = false;
+          });
+        } else {
+          print('=== DEBUG: API returned success=false or no data ===');
+          setState(() {
+            isLoading = false;
+          });
+        }
+      } else {
+        print('=== DEBUG: Token is null ===');
+        setState(() {
+          isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('=== DEBUG: Error fetching lead counts: $e ===');
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
 
   static final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -67,14 +124,11 @@ class SalesDashboardUI extends StatelessWidget {
       backgroundColor: const Color(0xFFF6FBF9),
 
       body: SafeArea(
-
-        child: ListView(
-
-          padding: const EdgeInsets.all(16),
-
-          children: [
-
-
+        child: RefreshIndicator(
+          onRefresh: _fetchLeadCounts,
+          child: ListView(
+            padding: const EdgeInsets.all(16),
+            children: [
 
             /// 🔹 TOP BAR
 
@@ -368,11 +422,11 @@ class SalesDashboardUI extends StatelessWidget {
 
               children: [
 
-                _statCard("Today's Lead", "3", Icons.person),
+                _statCard("Today's Lead", isLoading ? "..." : "${leadCounts['today_leads']}", Icons.person),
 
-                _statCard("New Leads", "12", Icons.group),
+                _statCard("Total Leads", isLoading ? "..." : "${leadCounts['total_leads']}", Icons.group),
 
-                _statCard("Closed Leads", "4", Icons.check_circle),
+                _statCard("Closed Leads", isLoading ? "..." : "${leadCounts['converted_leads']}", Icons.check_circle),
 
               ],
 
@@ -446,7 +500,7 @@ class SalesDashboardUI extends StatelessWidget {
 
                   title: "Total Leads",
 
-                  value: "200",
+                  value: isLoading ? "..." : "${leadCounts['total_leads']}",
 
                   percent: "+4.00%",
 
@@ -494,7 +548,7 @@ class SalesDashboardUI extends StatelessWidget {
 
                   title: "New Leads",
 
-                  value: "3",
+                  value: isLoading ? "..." : "${leadCounts['today_leads']}",
 
                   percent: "+1.32%",
 
@@ -538,63 +592,35 @@ class SalesDashboardUI extends StatelessWidget {
 
 
 
-            const SizedBox(height: 90), // ✅ space for bottom bar
+            const SizedBox(height: 90), // space for bottom bar
 
           ],
-
         ),
-
       ),
-
-      bottomNavigationBar: AppBottomBar(
-
+    ),
+    bottomNavigationBar: AppBottomBar(
         selectedIndex: 1, // change per page
-
         onTap: (index) {
-
           print("Bottom bar tapped: index = $index");
-
           if (index == 0) {
-
             Navigator.push(context, MaterialPageRoute(builder: (_) => const SalesDashboardUI()));
-
           } else if (index == 1) {
-
             Navigator.push(context, MaterialPageRoute(builder: (_) => const SecurityInvoicePage()));
-
           } else if (index == 2) {
-
             Navigator.push(context, MaterialPageRoute(builder: (_) => QuotationsPage()));
-
           } else if (index == 3) {
-
             print("Navigating to QuotationReportsPage");
-
             Navigator.push(
-
               context,
-
               MaterialPageRoute(builder: (_) => const QuotationReportsPage()),
-
             ).catchError((error) {
-
               print("Navigation error: $error");
-
             });
-
           }
-
         },
-
       ),
-
     );
-
   }
-
-
-
-
 
 //   Widget _summaryCard({
 

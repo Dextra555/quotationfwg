@@ -412,6 +412,56 @@ class ApiService {
     }
   }
 
+  static Future<Map<String, dynamic>> getLeadCounts(String token) async {
+    // Check network connectivity first
+    if (!(await NetworkService.isConnected())) {
+      throw Exception('No internet connection. Please check your network settings.');
+    }
+    
+    final url = Uri.parse('$devBaseUrl/leads/counts');
+    
+    try {
+      final response = await http.get(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'Accept': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+      ).timeout(
+        const Duration(seconds: 30),
+        onTimeout: () => throw Exception('Request timeout. Please check your internet connection.'),
+      );
+
+      if (response.statusCode == 200) {
+        try {
+          final Map<String, dynamic> responseData = jsonDecode(response.body);
+          print('=== Lead Counts API RESPONSE DEBUG ===');
+          print('Response Status: ${response.statusCode}');
+          print('Response Body: ${response.body}');
+          print('=====================================');
+          
+          return responseData;
+        } catch (e) {
+          throw Exception('Failed to parse lead counts response: $e');
+        }
+      } else if (response.statusCode == 401) {
+        throw Exception('Session expired. Please login again.');
+      } else if (response.statusCode == 404) {
+        throw Exception('Lead counts endpoint not found.');
+      } else {
+        throw Exception('Failed to fetch lead counts: ${response.statusCode} - ${response.body}');
+      }
+    } on http.ClientException catch (e) {
+      throw Exception('Network error: Unable to connect to server. Please check your internet connection.');
+    } catch (e) {
+      if (e.toString().contains('timeout')) {
+        throw Exception('Connection timeout. Please check your internet connection and try again.');
+      }
+      throw Exception('Network error: $e');
+    }
+  }
+
   static Future<LeadSubmissionResponse> submitLeadWithManualJson(Map<String, dynamic> jsonData) async {
     // Check network connectivity first
     if (!(await NetworkService.isConnected())) {
